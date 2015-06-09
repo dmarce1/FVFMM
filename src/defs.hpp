@@ -22,7 +22,7 @@ const integer LP = 1 + 3 + 6 + 10;
 const integer NDIM = 3;
 
 const integer HBW = 2;
-const integer INX = 16;
+const integer INX = 32;
 const integer HNX = 2 * HBW + INX;
 const integer HN3 = HNX * HNX * HNX;
 const integer NF = 7;

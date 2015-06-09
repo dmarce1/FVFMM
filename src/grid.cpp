@@ -88,6 +88,7 @@ grid::grid(const std::function<std::vector<real>(real, real, real)>& init_func) 
 			com[0][iii][dim] = X[dim][iii];
 		}
 	}
+	compute_ilist();
 	solve_gravity();
 }
 

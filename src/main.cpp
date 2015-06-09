@@ -1,10 +1,12 @@
 #include "grid.hpp"
 #include "problem.hpp"
+#include "taylor.hpp"
 #ifndef NDEBUG
 #include <fenv.h>
 #endif
 
 int main(int argc, char* argv[]) {
+	taylor<3> test;
 #ifndef NDEBUG
 	feenableexcept(FE_DIVBYZERO);
 	feenableexcept(FE_INVALID);
@@ -21,8 +23,10 @@ int main(int argc, char* argv[]) {
 	}
 	real tmax = 100.0;
 	while (t < tmax) {
+		auto tstart = clock();
 		real dt = root.step();
-		printf("%i %e %e\n", int(step), double(t), double(dt));
+		auto tstop = clock();
+		printf("%i %e %e %e\n", int(step), double(t), double(dt), double(tstop-tstart));
 		t += dt;
 		//if (step % 10 == 0) {
 			if (!asprintf(&fname, "X.%i.silo", int(step))) {

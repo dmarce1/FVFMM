@@ -10,15 +10,23 @@
 
 #include "defs.hpp"
 #include "roe.hpp"
-#include "multipole.hpp"
-#include "expansion.hpp"
+#include "taylor.hpp"
+#include "space_vector.hpp"
 #include <functional>
 
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/serialization/vector.hpp>
+#include <list>
 
 enum gsolve_type {RHO, DRHODT};
+
+struct npair {
+	integer lev;
+	std::pair<integer,integer> loc;
+};
+
+typedef std::pair<integer,integer> dpair;
 
 class grid {
 private:
@@ -44,7 +52,10 @@ private:
 	std::vector<std::vector<space_vector> > com;
 	std::vector<std::vector<multipole> > M;
 	std::array<std::vector<std::vector<expansion> >, NGF> L;
+	std::list<npair> ilist_n;
+	std::list<dpair> ilist_d;
 public:
+	void compute_ilist();
 	template<class Archive>
 	void serialize(Archive& arc, const unsigned) {
 		arc & U;

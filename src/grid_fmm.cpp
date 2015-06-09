@@ -26,16 +26,113 @@ void grid::solve_gravity(gsolve_type type) {
 }
 
 void grid::compute_interactions(gsolve_type type) {
+	npair np;
+	dpair dp;
+	for (integer lev = 0; lev != nlevel; ++lev) {
+		for (integer d = 0; d != NGF; ++d) {
+			std::fill(L[d][lev].begin(), L[d][lev].end(), ZERO);
+		}
+	}
+	for (auto iter = ilist_n.begin(); iter != ilist_n.end(); ++iter) {
+		const integer iii0 = iter->loc.first;
+		const integer iii1 = iter->loc.second;
+		const integer lev = iter->lev;
+		space_vector dX = (com[lev][iii0] - com[lev][iii1]);
+		taylor<5, real> D;
+		D.set_basis(dX);
+		taylor<4, real> A, B;
+		const multipole& m = M[lev][iii1];
+		multipole n;
+		if (type == RHO) {
+			n = m - M[lev][iii0] * (m() / M[lev][iii0]());
+		} else {
+			n = ZERO;
+		}
+		B = ZERO;
+		A() = m() * D();
+		for (integer a = 0; a != NDIM; ++a) {
+			A() -= m(a) * D(a);
+			for (integer b = 0; b != NDIM; ++b) {
+				A() += m(a, b) * D(a, b) / real(2);
+				for (integer c = 0; c != NDIM; ++c) {
+					A() -= m(a, b, c) * D(a, b, c) / real(6);
+				}
+			}
+		}
+
+		for (integer a = 0; a != NDIM; ++a) {
+			A(a) = m() * D(a);
+			for (integer b = 0; b != NDIM; ++b) {
+				A(a) -= m(a) * D(a, b);
+				for (integer c = 0; c != NDIM; ++c) {
+					A(a) += m(c, b) * D(a, b, c) / real(2);
+					for (integer d = 0; d != NDIM; ++d) {
+						B(a) -= n(b, c, d) * D(a, b, c, d) / real(6);
+					}
+				}
+			}
+		}
+
+		for (integer a = 0; a != NDIM; ++a) {
+			for (integer b = a; b != NDIM; ++b) {
+				A(a, b) = m() * D(a, b);
+				for (integer c = 0; c != NDIM; ++c) {
+					A(a, b) -= m(c) * D(a, b, c);
+				}
+			}
+		}
+
+		for (integer a = 0; a != NDIM; ++a) {
+			for (integer b = a; b != NDIM; ++b) {
+				for (integer c = b; c != NDIM; ++c) {
+					A(a, b, c) = m() * D(a, b, c);
+				}
+			}
+		}
+
+		L[phi_i][lev][iii0] += A;
+		if (type == RHO) {
+			A += B;
+			for (integer a = 0; a != NDIM; ++a) {
+				L[gx_i + a][lev][iii0]() += A(a);
+				for (integer b = 0; b != NDIM; ++b) {
+					L[gx_i + a][lev][iii0](b) += A(a, b);
+					for (integer c = b; c != NDIM; ++c) {
+						L[gx_i + a][lev][iii0](b, c) += A(a, b, c);
+					}
+				}
+			}
+		}
+
+	}
+	for (auto iter = ilist_d.begin(); iter != ilist_d.end(); ++iter) {
+		const integer iii0 = iter->first;
+		const integer iii1 = iter->second;
+		const integer lev = 0;
+		space_vector dX = (com[lev][iii0] - com[lev][iii1]);
+		const real r = dX.abs();
+		const real rinv = ONE / r;
+		const real r3inv = ONE / (r * r * r);
+		L[phi_i][0][iii0]() -= M[0][iii1]() * rinv;
+		if (type == RHO) {
+			L[gx_i][0][iii0]() += M[0][iii1]() * r3inv * dX[XDIM];
+			L[gy_i][0][iii0]() += M[0][iii1]() * r3inv * dX[YDIM];
+			L[gz_i][0][iii0]() += M[0][iii1]() * r3inv * dX[ZDIM];
+		}
+
+	}
+}
+
+void grid::compute_ilist() {
 	integer lev = nlevel - 2;
+	npair np;
+	dpair dp;
 	for (integer inx = 4; inx <= INX; inx <<= 1) {
 		const integer nx = inx + 2 * HBW;
 		for (integer i0 = HBW; i0 != nx - HBW; ++i0) {
 			for (integer j0 = HBW; j0 != nx - HBW; ++j0) {
 				for (integer k0 = HBW; k0 != nx - HBW; ++k0) {
 					const integer iii0 = i0 * nx * nx + j0 * nx + k0;
-					for (integer field = 0; field != NGF; ++field) {
-						L[field][lev][iii0] = ZERO;
-					}
 					const integer imin = std::max(integer(HBW), 2 * ((i0 / 2) - 1));
 					const integer jmin = std::max(integer(HBW), 2 * ((j0 / 2) - 1));
 					const integer kmin = std::max(integer(HBW), 2 * ((k0 / 2) - 1));
@@ -48,28 +145,15 @@ void grid::compute_interactions(gsolve_type type) {
 								const integer iii1 = i1 * nx * nx + j1 * nx + k1;
 								integer max_dist = std::max(std::abs(k0 - k1),
 										std::max(std::abs(i0 - i1), std::abs(j0 - j1)));
-								space_vector dX = (com[lev][iii0] - com[lev][iii1]);
 								if (max_dist > 1 && lev != 0) {
-									expansion D;
-									D.compute_D(dX);
-									const auto dphi = M[lev][iii1] * D;
-									L[phi_i][lev][iii0] += dphi;
-									if (type == RHO) {
-										const auto dg = dphi.get_derivatives(M[lev][iii1], M[lev][iii0], dX);
-										L[gx_i][lev][iii0] += dg[XDIM];
-										L[gy_i][lev][iii0] += dg[YDIM];
-										L[gz_i][lev][iii0] += dg[ZDIM];
-									}
+									np.lev = lev;
+									np.loc.first = iii0;
+									np.loc.second = iii1;
+									ilist_n.push_back(np);
 								} else if (lev == 0 && max_dist > 0) {
-									const real r = dX.abs();
-									const real rinv = ONE / r;
-									const real r3inv = ONE / (r * r * r);
-									L[phi_i][0][iii0]() -= M[0][iii1]() * rinv;
-									if (type == RHO) {
-										L[gx_i][0][iii0]() += M[0][iii1]() * r3inv * dX[XDIM];
-										L[gy_i][0][iii0]() += M[0][iii1]() * r3inv * dX[YDIM];
-										L[gz_i][0][iii0]() += M[0][iii1]() * r3inv * dX[ZDIM];
-									}
+									dp.first = iii0;
+									dp.second = iii1;
+									ilist_d.push_back(dp);
 								}
 							}
 						}
