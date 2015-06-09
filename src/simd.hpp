@@ -82,7 +82,7 @@ public:
 	}
 	inline simd_vector operator/(double d) const {
 		const simd_vector other = d;
-		return other / d;
+		return *this / other;
 	}
 
 	inline simd_vector operator*=( double d) {

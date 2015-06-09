@@ -69,18 +69,16 @@ grid::grid(const std::function<std::vector<real>(real, real, real)>& init_func) 
 	}
 	com.resize(nlevel);
 	M.resize(nlevel);
-	for (integer field = 0; field != NGF; ++field) {
-		L[field].resize(nlevel);
-	}
+	L.resize(nlevel);
+	L_c.resize(nlevel);
 	nlevel = 0;
 	for (integer inx = INX; inx > 1; inx /= 2) {
 		const integer this_nx = inx + 2 * HBW;
 		const integer sz = this_nx * this_nx * this_nx;
 		com[nlevel].resize(sz);
 		M[nlevel].resize(sz);
-		for (integer field = 0; field != NGF; ++field) {
-			L[field][nlevel].resize(sz);
-		}
+		L[nlevel].resize(sz);
+		L_c[nlevel].resize(sz);
 		++nlevel;
 	}
 	for (integer iii = 0; iii != HN3; ++iii) {
@@ -407,7 +405,7 @@ void grid::next_u(integer rk, real dt) {
 				du[field] += (F[YDIM][field][jjj_p] - F[YDIM][field][jjj_m]) * dx * dx;
 				du[field] += (F[ZDIM][field][kkk_p] - F[ZDIM][field][kkk_m]) * dx * dx;
 			}
-		//	du[egas_i] += du[pot_i];
+			//	du[egas_i] += du[pot_i];
 			for (integer field = 0; field != NF; ++field) {
 				du_out[field] += du[field] * dt;
 			}

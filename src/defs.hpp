@@ -14,6 +14,8 @@
 typedef double real;
 typedef long int integer;
 
+#define USE_SIMD
+
 //#define USE_LZ_CORRECT
 
 const integer MP = 1 + 3 + 6 + 10;

@@ -9,7 +9,7 @@
 #define TAYLOR_HPP_
 
 #include "defs.hpp"
-
+#include "simd.hpp"
 #include <array>
 #include <cmath>
 
@@ -22,86 +22,86 @@ struct taylor_consts {
 	static integer map4[3][3][3][3];
 };
 
-template<int npoles, class T = real>
+template<int N, class T = real>
 class taylor {
 private:
 	static constexpr integer sizes[MAX_ORDER] = {1, 4, 10, 20, 35}; //
-	static constexpr integer size = sizes[npoles-1];
+	static constexpr integer size = sizes[N-1];
 	static taylor_consts tc;
 	std::array<T, size> data;
 public:
 	taylor() = default;
 	~taylor() = default;
-	taylor(const taylor&) = default;
-	taylor(taylor&&) = default;
-	taylor& operator=(const taylor&) = default;
-	taylor& operator=(taylor&&) = default;
+	taylor(const taylor<N,T>&) = default;
+	taylor(taylor<N,T>&&) = default;
+	taylor<N,T>& operator=(const taylor<N,T>&) = default;
+	taylor<N,T>& operator=(taylor<N,T>&&) = default;
 
-	taylor& operator=(T d) {
+	taylor<N,T>& operator=(T d) {
 		for( integer i = 0; i != size; ++i ) {
 			data[i] = d;
 		}
 		return *this;
 	}
 
-	taylor& operator*=(T d) {
+	taylor<N,T>& operator*=(T d) {
 		for( integer i = 0; i != size; ++i ) {
 			data[i] *= d;
 		}
 		return *this;
 	}
 
-	taylor& operator/=(T d) {
+	taylor<N,T>& operator/=(T d) {
 		for( integer i = 0; i != size; ++i ) {
 			data[i] /= d;
 		}
 		return *this;
 	}
 
-	taylor& operator+=(const taylor& other) {
+	taylor<N,T>& operator+=(const taylor<N,T>& other) {
 		for( integer i = 0; i != size; ++i) {
 			data[i] += other.data[i];
 		}
 		return *this;
 	}
 
-	taylor& operator-=(const taylor& other) {
+	taylor<N,T>& operator-=(const taylor<N,T>& other) {
 		for( integer i = 0; i != size; ++i) {
 			data[i] -= other.data[i];
 		}
 		return *this;
 	}
 
-	taylor operator+(const taylor& other) const {
-		taylor r = *this;
+	taylor<N,T> operator+(const taylor<N,T>& other) const {
+		taylor<N,T> r = *this;
 		r += other;
 		return r;
 	}
 
-	taylor operator-(const taylor& other) const {
-		taylor r = *this;
+	taylor<N,T> operator-(const taylor<N,T>& other) const {
+		taylor<N,T> r = *this;
 		r -= other;
 		return r;
 	}
 
-	taylor operator*(const T& d) const {
-		taylor r = *this;
+	taylor<N,T> operator*(const T& d) const {
+		taylor<N,T> r = *this;
 		r *= d;
 		return r;
 	}
 
-	taylor operator/(const T& d) const {
-		taylor r = *this;
+	taylor<N,T> operator/(const T& d) const {
+		taylor<N,T> r = *this;
 		r /= d;
 		return r;
 	}
 
-	taylor operator+() const {
+	taylor<N,T> operator+() const {
 		return *this;
 	}
 
-	taylor operator-() const {
-		taylor r = *this;
+	taylor<N,T> operator-() const {
+		taylor<N,T> r = *this;
 		for( integer i = 0; i != size; ++i) {
 			r.data[i] = -r.data[i];
 		}
@@ -148,22 +148,22 @@ public:
 		return data[tc.map4[i][j][k][l]];
 	}
 
-	taylor& operator>>=(const std::array<T,NDIM>& X) {
-		const taylor& A = *this;
-		taylor B = A;
+	taylor<N,T>& operator>>=(const std::array<T,NDIM>& X) {
+		const taylor<N,T>& A = *this;
+		taylor<N,T> B = A;
 
-		if( npoles > 1 ) {
+		if( N > 1 ) {
 			for( integer a = 0; a < NDIM; ++a) {
 				B(a) += A() * X[a];
 			}
-			if( npoles > 2 ) {
+			if( N > 2 ) {
 				for( integer a = 0; a < NDIM; ++a) {
 					for( integer b = a; b < NDIM; ++b) {
 						B(a,b) += A(a) * X[b] + X[a] * A(b);
 						B(a,b) += A()*X[a]*X[b];
 					}
 				}
-				if( npoles > 3 ) {
+				if( N > 3 ) {
 					for( integer a = 0; a < NDIM; ++a) {
 						for( integer b = a; b < NDIM; ++b) {
 							for( integer c = b; c < NDIM; ++c) {
@@ -180,21 +180,21 @@ public:
 		return *this;
 	}
 
-	taylor operator>>(const std::array<T,NDIM>& X) const {
-		taylor r = *this;
+	taylor<N,T> operator>>(const std::array<T,NDIM>& X) const {
+		taylor<N,T> r = *this;
 		r >>= X;
 		return r;
 	}
 
-	taylor& operator<<=(const std::array<T,NDIM>& X ) {
-		const taylor& A = *this;
-		taylor B = A;
+	taylor<N,T>& operator<<=(const std::array<T,NDIM>& X ) {
+		const taylor<N,T>& A = *this;
+		taylor<N,T> B = A;
 
-		if( npoles > 1 ) {
+		if( N > 1 ) {
 			for (integer a = 0; a != NDIM; a++) {
 				B() += A(a) * X[a];
 			}
-			if( npoles > 2 ) {
+			if( N > 2 ) {
 				for (integer a = 0; a != NDIM; a++) {
 					for (integer b = 0; b != NDIM; b++) {
 						B() += A(a, b) * X[a] * X[b] / T(2);
@@ -205,7 +205,7 @@ public:
 						B(a) += A(a, b) * X[b];
 					}
 				}
-				if( npoles > 3 ) {
+				if( N > 3 ) {
 					for (integer a = 0; a != NDIM; a++) {
 						for (integer b = 0; b != NDIM; b++) {
 							for (integer c = 0; c != NDIM; c++) {
@@ -234,15 +234,15 @@ public:
 		return *this;
 	}
 
-	taylor operator<<(const std::array<T,NDIM>& X) const {
-		taylor r = *this;
+	taylor<N,T> operator<<(const std::array<T,NDIM>& X) const {
+		taylor<N,T> r = *this;
 		r <<= X;
 		return r;
 	}
 
 	void set_basis(const std::array<T,NDIM>& X) {
-
-		taylor& A = *this;
+		static const T delta[3][3] = { {T(ONE), T(ZERO), T(ZERO)}, {T(ZERO), T(ONE), T(ZERO)}, {T(ZERO), T(ZERO), T(ONE)}};
+		taylor<N,T>& A = *this;
 		T r = ZERO;
 		for (integer d = 0; d != NDIM; ++d) {
 			r += X[d] * X[d];
@@ -252,45 +252,45 @@ public:
 		const T d0 = -sqrt(r2inv);
 		A() = d0;
 
-		if( npoles > 1) {
+		if( N > 1) {
 			const T d1 = -d0 * r2inv;
 			for (integer a = 0; a != NDIM; a++) {
 				A(a) = X[a] * d1;
 			}
-			if( npoles > 2 ) {
+			if( N > 2 ) {
 				const T d2 = -T(3) * d1 * r2inv;
 				for (integer a = 0; a != NDIM; a++) {
 					for (integer b = a; b != NDIM; b++) {
 						A(a, b) = X[a] * X[b] * d2;
-						A(a, b) += tc.delta[a][b] * d1;
+						A(a, b) += delta[a][b] * d1;
 					}
 				}
-				if( npoles > 3 ) {
+				if( N > 3 ) {
 					const T d3 = -T(5) * d2 * r2inv;
 					for (integer a = 0; a != NDIM; a++) {
 						for (integer b = a; b != NDIM; b++) {
 							for (integer c = b; c != NDIM && b != NDIM; c++) {
 								A(a, b, c) = X[a] * X[b] * X[c] * d3;
-								A(a, b, c) += (tc.delta[a][b] * X[c] + tc.delta[b][c] * X[a] + tc.delta[c][a] * X[b]) * d2;
+								A(a, b, c) += (delta[a][b] * X[c] + delta[b][c] * X[a] + delta[c][a] * X[b]) * d2;
 							}
 						}
 					}
-					if( npoles > 4 ) {
+					if( N > 4 ) {
 						const T d4 = -T(7) * d3 * r2inv;
 						for (integer a = 0; a != NDIM; a++) {
 							for (integer b = a; b != NDIM; b++) {
 								for (integer c = b; c != NDIM; c++) {
 									for( integer d = c; d != NDIM && c != NDIM; ++d) {
 										A(a,b,c,d) = X[a] * X[b] * X[c] * X[d] * d4;
-										A(a,b,c,d) += (tc.delta[a][b] * X[c] * X[d]
-												+ tc.delta[a][c] * X[b] * X[d]
-												+ tc.delta[a][d] * X[b] * X[c]
-												+ tc.delta[b][c] * X[a] * X[d]
-												+ tc.delta[b][d] * X[a] * X[c]
-												+ tc.delta[c][d] * X[a] * X[b]) * d3;
-										A(a,b,c,d) += (tc.delta[a][b] * tc.delta[c][d]
-												+ tc.delta[a][c] * tc.delta[b][d]
-												+ tc.delta[a][d] * tc.delta[b][c]) * d2;
+										A(a,b,c,d) += (delta[a][b] * X[c] * X[d]
+												+ delta[a][c] * X[b] * X[d]
+												+ delta[a][d] * X[b] * X[c]
+												+ delta[b][c] * X[a] * X[d]
+												+ delta[b][d] * X[a] * X[c]
+												+ delta[c][d] * X[a] * X[b]) * d3;
+										A(a,b,c,d) += (delta[a][b] * delta[c][d]
+												+ delta[a][c] * delta[b][d]
+												+ delta[a][d] * delta[b][c]) * d2;
 
 									}
 								}
@@ -302,10 +302,13 @@ public:
 		}
 	}
 
+	T* ptr() {
+		return data.data();
+	}
 };
 
-template<int npoles, class T>
-taylor_consts taylor<npoles, T>::tc;
+template<int N, class T>
+taylor_consts taylor<N, T>::tc;
 
 using multipole = taylor<4,real>;
 using expansion = taylor<4,real>;

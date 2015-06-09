@@ -19,14 +19,16 @@
 #include <boost/serialization/vector.hpp>
 #include <list>
 
-enum gsolve_type {RHO, DRHODT};
+enum gsolve_type {
+	RHO, DRHODT
+};
 
 struct npair {
 	integer lev;
-	std::pair<integer,integer> loc;
+	std::pair<integer, integer> loc;
 };
 
-typedef std::pair<integer,integer> dpair;
+typedef std::pair<integer, integer> dpair;
 
 class grid {
 private:
@@ -51,7 +53,8 @@ private:
 	std::vector<real> dphi_dt;
 	std::vector<std::vector<space_vector> > com;
 	std::vector<std::vector<multipole> > M;
-	std::array<std::vector<std::vector<expansion> >, NGF> L;
+	std::vector<std::vector<expansion> > L;
+	std::vector<std::vector<expansion> > L_c;
 	std::list<npair> ilist_n;
 	std::list<dpair> ilist_d;
 public:
@@ -70,7 +73,7 @@ public:
 	void compute_dudt();
 	void egas_to_etot();
 	void etot_to_egas();
-	void solve_gravity(gsolve_type=RHO);
+	void solve_gravity(gsolve_type = RHO);
 	void compute_multipoles(gsolve_type);
 	void compute_interactions(gsolve_type);
 	void compute_expansions(gsolve_type);
