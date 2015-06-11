@@ -38,6 +38,7 @@ public:
 	taylor<N,T>& operator=(taylor<N,T>&&) = default;
 
 	taylor<N,T>& operator=(T d) {
+#pragma GCC ivdep
 		for( integer i = 0; i != size; ++i ) {
 			data[i] = d;
 		}
@@ -45,6 +46,7 @@ public:
 	}
 
 	taylor<N,T>& operator*=(T d) {
+#pragma GCC ivdep
 		for( integer i = 0; i != size; ++i ) {
 			data[i] *= d;
 		}
@@ -52,6 +54,7 @@ public:
 	}
 
 	taylor<N,T>& operator/=(T d) {
+#pragma GCC ivdep
 		for( integer i = 0; i != size; ++i ) {
 			data[i] /= d;
 		}
@@ -59,6 +62,7 @@ public:
 	}
 
 	taylor<N,T>& operator+=(const taylor<N,T>& other) {
+#pragma GCC ivdep
 		for( integer i = 0; i != size; ++i) {
 			data[i] += other.data[i];
 		}
@@ -66,6 +70,7 @@ public:
 	}
 
 	taylor<N,T>& operator-=(const taylor<N,T>& other) {
+#pragma GCC ivdep
 		for( integer i = 0; i != size; ++i) {
 			data[i] -= other.data[i];
 		}
@@ -102,6 +107,7 @@ public:
 
 	taylor<N,T> operator-() const {
 		taylor<N,T> r = *this;
+#pragma GCC ivdep
 		for( integer i = 0; i != size; ++i) {
 			r.data[i] = -r.data[i];
 		}
@@ -197,7 +203,7 @@ public:
 			if( N > 2 ) {
 				for (integer a = 0; a != NDIM; a++) {
 					for (integer b = 0; b != NDIM; b++) {
-						B() += A(a, b) * X[a] * X[b] / T(2);
+						B() += A(a, b) * X[a] * X[b] * T(real(1)/real(2));
 					}
 				}
 				for (integer a = 0; a != NDIM; a++) {
@@ -209,14 +215,14 @@ public:
 					for (integer a = 0; a != NDIM; a++) {
 						for (integer b = 0; b != NDIM; b++) {
 							for (integer c = 0; c != NDIM; c++) {
-								B() += A(a, b, c) * X[a] * X[b] * X[c] / T(6);
+								B() += A(a, b, c) * X[a] * X[b] * X[c] * T(real(1)/real(6));
 							}
 						}
 					}
 					for (integer a = 0; a != NDIM; a++) {
 						for (integer b = 0; b != NDIM; b++) {
 							for (integer c = 0; c != NDIM; c++) {
-								B(a) += A(a, b, c) * X[b] * X[c] / T(2);
+								B(a) += A(a, b, c) * X[b] * X[c] * T(real(1)/real(2));
 							}
 						}
 					}

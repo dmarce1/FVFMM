@@ -55,8 +55,8 @@ private:
 	std::vector<std::vector<multipole> > M;
 	std::vector<std::vector<expansion> > L;
 	std::vector<std::vector<expansion> > L_c;
-	std::list<npair> ilist_n;
-	std::list<dpair> ilist_d;
+	std::vector<npair> ilist_n;
+	std::vector<dpair> ilist_d;
 public:
 	void compute_ilist();
 	template<class Archive>

@@ -21,20 +21,20 @@ int main(int argc, char* argv[]) {
 		t = root.get_time();
 		step = root.get_step();
 	}
-	real tmax = 100.0;
+	real tmax = 1000.0;
 	while (t < tmax) {
 		auto tstart = clock();
 		real dt = root.step();
 		auto tstop = clock();
 		printf("%i %e %e %e\n", int(step), double(t), double(dt), double(tstop-tstart));
 		t += dt;
-		//if (step % 10 == 0) {
-			if (!asprintf(&fname, "X.%i.silo", int(step))) {
+		if (step % 10 == 0) {
+			if (!asprintf(&fname, "X.%i.silo", int(step/10))) {
 				abort();
 			}
 			root.output(fname);
 			free(fname);
-	//	}
+		}
 		++step;
 	}
 }

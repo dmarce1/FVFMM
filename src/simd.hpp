@@ -11,20 +11,21 @@
 #include <cstdlib>
 #include "immintrin.h"
 
-const std::size_t simd_len = 4;
+#define SIMD_SIZE 2
+
+const std::size_t simd_len = 4 * SIMD_SIZE;
 
 class simd_vector {
 private:
-	__m256d v;
+	__m256d v[SIMD_SIZE];
 public:
 	inline simd_vector() = default;
 	inline ~simd_vector() = default;
 	inline simd_vector(const simd_vector&) = default;
-	inline simd_vector(const __m256d& mm) {
-		v = mm;
-	}
 	inline simd_vector(double d) {
-		v =_mm256_set_pd(d,d,d,d);
+		for( integer i = 0; i!= SIMD_SIZE; ++i) {
+			v[i] =_mm256_set_pd(d,d,d,d);
+		}
 	}
 	inline double sum() const {
 		double r = ZERO;
@@ -33,25 +34,44 @@ public:
 		}
 		return r;
 	}
-	inline simd_vector& operator=(const __m256d& mm) {
-		v = mm;
-		return *this;
-	}
 	inline simd_vector(simd_vector&&) = default;
 	inline simd_vector& operator=(const simd_vector&) = default;
 	inline simd_vector& operator=(simd_vector&&) = default;
 
+	inline simd_vector& conditional_assignment(const simd_vector& other, const simd_vector& mask) {
+		for( integer i = 0; i != SIMD_SIZE; ++i) {
+			_mm256_maskstore_pd(reinterpret_cast<double*>(v + i), (__m256i) mask.v[i], other.v[i]);
+		}
+		return *this;
+	};
+
 	inline simd_vector operator+( const simd_vector& other) const {
-		return simd_vector(_mm256_add_pd(v, other.v));
+		simd_vector r;
+		for( integer i = 0; i != SIMD_SIZE; ++i) {
+			r.v[i] = _mm256_add_pd(v[i], other.v[i]);
+		}
+		return r;
 	}
 	inline simd_vector operator-( const simd_vector& other) const {
-		return simd_vector(_mm256_sub_pd(v, other.v));
+		simd_vector r;
+		for( integer i = 0; i != SIMD_SIZE; ++i) {
+			r.v[i] = _mm256_sub_pd(v[i], other.v[i]);
+		}
+		return r;
 	}
 	inline simd_vector operator*( const simd_vector& other) const {
-		return simd_vector(_mm256_mul_pd(v, other.v));
+		simd_vector r;
+		for( integer i = 0; i != SIMD_SIZE; ++i) {
+			r.v[i] = _mm256_mul_pd(v[i], other.v[i]);
+		}
+		return r;
 	}
 	inline simd_vector operator/( const simd_vector& other) const {
-		return simd_vector(_mm256_div_pd(v, other.v));
+		simd_vector r;
+		for( integer i = 0; i != SIMD_SIZE; ++i) {
+			r.v[i] = _mm256_div_pd(v[i], other.v[i]);
+		}
+		return r;
 	}
 	inline simd_vector operator+() const {
 		return *this;
@@ -81,8 +101,8 @@ public:
 		return other * *this;
 	}
 	inline simd_vector operator/(double d) const {
-		const simd_vector other = d;
-		return *this / other;
+		const simd_vector other = ONE / d;
+		return *this * other;
 	}
 
 	inline simd_vector operator*=( double d) {
@@ -90,7 +110,7 @@ public:
 		return *this;
 	}
 	inline simd_vector operator/=(double d) {
-		*this = *this / d;
+		*this = *this * (ONE/d);
 		return *this;
 	}
 	inline double& operator[](std::size_t i) {
@@ -102,13 +122,79 @@ public:
 		return a[i];
 	}
 
+	simd_vector operator>=( const simd_vector& other ) const {
+		simd_vector r;
+		for (integer i = 0; i != SIMD_SIZE; ++i) {
+			r.v[i] = _mm256_cmp_pd(v[i], other.v[i], _CMP_GE_OS);
+		}
+		return r;
+	}
+	simd_vector operator>( const simd_vector& other ) const {
+		simd_vector r;
+		for (integer i = 0; i != SIMD_SIZE; ++i) {
+			r.v[i] = _mm256_cmp_pd(v[i], other.v[i], _CMP_GT_OS);
+		}
+		return r;
+	}
+	simd_vector operator<=( const simd_vector& other ) const {
+		simd_vector r;
+		for (integer i = 0; i != SIMD_SIZE; ++i) {
+			r.v[i] = _mm256_cmp_pd(v[i], other.v[i], _CMP_LE_OS);
+		}
+		return r;
+	}
+	simd_vector operator<( const simd_vector& other ) const {
+		simd_vector r;
+		for (integer i = 0; i != SIMD_SIZE; ++i) {
+			r.v[i] = _mm256_cmp_pd(v[i], other.v[i], _CMP_LT_OS);
+		}
+		return r;
+	}
+	simd_vector operator==( const simd_vector& other ) const {
+		simd_vector r;
+		for (integer i = 0; i != SIMD_SIZE; ++i) {
+			r.v[i] = _mm256_cmp_pd(v[i], other.v[i], _CMP_EQ_OS);
+		}
+		return r;
+	}
+	simd_vector operator!=( const simd_vector& other ) const {
+		simd_vector r;
+		for (integer i = 0; i != SIMD_SIZE; ++i) {
+			r.v[i] = _mm256_cmp_pd(v[i], other.v[i], _CMP_NEQ_OS);
+		}
+		return r;
+	}
+	real max() const {
+		const real a = std::max((*this)[0],(*this)[1]);
+		const real b = std::max((*this)[2],(*this)[3]);
+		const real c = std::max((*this)[4],(*this)[5]);
+		const real d = std::max((*this)[6],(*this)[7]);
+		const real e = std::max(a,b);
+		const real f = std::max(c,d);
+		return std::max(e,f);
+	}
+	real min() const {
+		const real a = std::min((*this)[0],(*this)[1]);
+		const real b = std::min((*this)[2],(*this)[3]);
+		const real c = std::min((*this)[4],(*this)[5]);
+		const real d = std::min((*this)[6],(*this)[7]);
+		const real e = std::min(a,b);
+		const real f = std::min(c,d);
+		return std::min(e,f);
+	}
 	friend simd_vector sqrt(const simd_vector&);
 	friend simd_vector operator*(double, const simd_vector& other);
 	friend simd_vector operator/(double, const simd_vector& other);
+	friend simd_vector max(const simd_vector& a, const simd_vector& b);
+
 };
 
-inline simd_vector sqrt(const simd_vector& v) {
-	return simd_vector(_mm256_sqrt_pd(v.v));
+inline simd_vector sqrt(const simd_vector& vec) {
+	simd_vector r;
+	for (integer i = 0; i != SIMD_SIZE; ++i) {
+		r.v[i] = _mm256_sqrt_pd(vec.v[i]);
+	}
+	return r;
 }
 
 inline simd_vector operator*(double d, const simd_vector& other) {
@@ -119,6 +205,30 @@ inline simd_vector operator*(double d, const simd_vector& other) {
 inline simd_vector operator/(double d, const simd_vector& other) {
 	const simd_vector a = d;
 	return a / other;
+}
+
+inline void simd_pack(simd_vector* dest, real* src, integer src_len, integer pos) {
+	for (integer i = 0; i != src_len; ++i) {
+		dest[i][pos] = src[i];
+	}
+}
+
+inline void simd_unpack(real* dest, simd_vector* src, integer src_len, integer pos) {
+	for (integer i = 0; i != src_len; ++i) {
+		dest[i] = src[i][pos];
+	}
+}
+
+inline simd_vector max(const simd_vector& a, const simd_vector& b) {
+	simd_vector r;
+	for (integer i = 0; i != SIMD_SIZE; ++i) {
+		r.v[i] = _mm256_max_pd(a.v[i], b.v[i]);
+	}
+	return r;
+}
+
+inline simd_vector abs(const simd_vector& a) {
+	return max(a, -a);
 }
 
 #endif /* SIMD_VECTOR_HPP_ */
