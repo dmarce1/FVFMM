@@ -60,15 +60,13 @@ void grid::compute_interactions(gsolve_type type) {
 				if (j >= 10) {
 					if (type == RHO) {
 						n0.ptr()[j][i] = M[lev][iii1].ptr()[j]
-								- M[lev][iii0].ptr()[j]
-										* (M[lev][iii1]() / M[lev][iii0]());
+								- M[lev][iii0].ptr()[j] * (M[lev][iii1]() / M[lev][iii0]());
 					} else {
 						n0.ptr()[j][i] = ZERO;
 					}
 					if (type == RHO) {
 						n1.ptr()[j][i] = M[lev][iii0].ptr()[j]
-								- M[lev][iii1].ptr()[j]
-										* (M[lev][iii0]() / M[lev][iii1]());
+								- M[lev][iii1].ptr()[j] * (M[lev][iii0]() / M[lev][iii1]());
 					} else {
 						n1.ptr()[j][i] = ZERO;
 					}
@@ -117,8 +115,7 @@ void grid::compute_interactions(gsolve_type type) {
 					A1(a) -= m1(c, b) * tmp;
 					if (type == RHO) {
 						for (integer d = 0; d != NDIM; ++d) {
-							const auto tmp = D(a, b, c, d)
-									* (real(1) / real(6));
+							const auto tmp = D(a, b, c, d) * (real(1) / real(6));
 							B0(a) -= n0(b, c, d) * tmp;
 							B1(a) -= n1(b, c, d) * tmp;
 						}
@@ -217,47 +214,81 @@ void grid::compute_interactions(gsolve_type type) {
 }
 
 void grid::compute_ilist() {
+	std::vector<std::vector<integer> > face_num(nlevel, std::vector<integer>(HN3, integer(0)));
 	integer lev = nlevel - 2;
+	for (integer inx = 4; inx <= INX; inx <<= 1) {
+		const integer nx = inx + 2 * HBW;
+		for (integer i0 = 0; i0 != nx; ++i0) {
+			for (integer j0 = 0; j0 != nx; ++j0) {
+				for (integer k0 = 0; k0 != nx; ++k0) {
+					const integer iii0 = i0 * nx * nx + j0 * nx + k0;
+					auto& ref = face_num[lev][iii0];
+					if (k0 < HBW) {
+						ref = FZM;
+					} else if (k0 >= nx - HBW) {
+						ref = FZP;
+					} else if (j0 < HBW) {
+						ref = FYM;
+					} else if (j0 >= nx - HBW) {
+						ref = FYP;
+					} else if (i0 < HBW) {
+						ref = FXM;
+					} else if (i0 >= nx - HBW) {
+						ref = FXP;
+					} else {
+						ref = -1;
+					}
+				}
+			}
+		}
+		--lev;
+	}
+	lev = nlevel - 2;
 	npair np;
 	dpair dp;
 	std::vector<npair> ilist_n0;
 	std::vector<dpair> ilist_d0;
+	std::array<std::vector<npair>, NFACE> ilist_n0_bnd;
+	std::array<std::vector<dpair>, NFACE> ilist_d0_bnd;
 	for (integer inx = 4; inx <= INX; inx <<= 1) {
 		const integer nx = inx + 2 * HBW;
-		for (integer i0 = HBW; i0 != nx - HBW; ++i0) {
-			for (integer j0 = HBW; j0 != nx - HBW; ++j0) {
-				for (integer k0 = HBW; k0 != nx - HBW; ++k0) {
+
+		for (integer i0 = 0; i0 != nx; ++i0) {
+			for (integer j0 = 0; j0 != nx; ++j0) {
+				for (integer k0 = 0; k0 != nx; ++k0) {
 					const integer iii0 = i0 * nx * nx + j0 * nx + k0;
-					const integer imin = std::max(integer(HBW),
-							2 * ((i0 / 2) - 1));
-					const integer jmin = std::max(integer(HBW),
-							2 * ((j0 / 2) - 1));
-					const integer kmin = std::max(integer(HBW),
-							2 * ((k0 / 2) - 1));
-					const integer imax = std::min(integer(nx - HBW - 1),
-							2 * ((i0 / 2) + 1) + 1);
-					const integer jmax = std::min(integer(nx - HBW - 1),
-							2 * ((j0 / 2) + 1) + 1);
-					const integer kmax = std::min(integer(nx - HBW - 1),
-							2 * ((k0 / 2) + 1) + 1);
+					const integer imin = std::max(integer(0), 2 * ((i0 / 2) - 1));
+					const integer jmin = std::max(integer(0), 2 * ((j0 / 2) - 1));
+					const integer kmin = std::max(integer(0), 2 * ((k0 / 2) - 1));
+					const integer imax = std::min(integer(nx - 1), 2 * ((i0 / 2) + 1) + 1);
+					const integer jmax = std::min(integer(nx - 1), 2 * ((j0 / 2) + 1) + 1);
+					const integer kmax = std::min(integer(nx - 1), 2 * ((k0 / 2) + 1) + 1);
 					for (integer i1 = imin; i1 <= imax; ++i1) {
 						for (integer j1 = jmin; j1 <= jmax; ++j1) {
 							for (integer k1 = kmin; k1 <= kmax; ++k1) {
-								const integer iii1 = i1 * nx * nx + j1 * nx
-										+ k1;
+								const integer iii1 = i1 * nx * nx + j1 * nx + k1;
 								integer max_dist = std::max(std::abs(k0 - k1),
-										std::max(std::abs(i0 - i1),
-												std::abs(j0 - j1)));
-								if (iii1 > iii0) {
-									if (max_dist > 1 && lev != 0) {
-										np.lev = lev;
-										np.loc.first = iii0;
-										np.loc.second = iii1;
-										ilist_n0.push_back(np);
-									} else if (lev == 0 && max_dist > 0) {
-										dp.first = iii0;
-										dp.second = iii1;
-										ilist_d0.push_back(dp);
+										std::max(std::abs(i0 - i1), std::abs(j0 - j1)));
+								if (max_dist > 1 && lev != 0) {
+									np.lev = lev;
+									np.loc.first = iii0;
+									np.loc.second = iii1;
+									if (face_num[lev][iii1] == -1 && face_num[lev][iii0] == -1) {
+										if (iii1 > iii0) {
+											ilist_n0.push_back(np);
+										}
+									} else if (face_num[lev][iii0] == -1) {
+										ilist_n0_bnd[face_num[lev][iii1]].push_back(np);
+									}
+								} else if (lev == 0 && max_dist > 0) {
+									dp.first = iii0;
+									dp.second = iii1;
+									if (face_num[lev][iii1] == -1 && face_num[lev][iii0] == -1) {
+										if (iii1 > iii0) {
+											ilist_d0.push_back(dp);
+										}
+									} else if (face_num[lev][iii0] == -1) {
+										ilist_d0_bnd[face_num[lev][iii1]].push_back(dp);
 									}
 								}
 							}
@@ -266,10 +297,15 @@ void grid::compute_ilist() {
 				}
 			}
 		}
+
 		--lev;
 	}
 	ilist_n = std::vector<npair>(ilist_n0.begin(), ilist_n0.end());
 	ilist_d = std::vector<dpair>(ilist_d0.begin(), ilist_d0.end());
+	for (integer face = 0; face != NFACE; ++face) {
+		ilist_n_bnd[face] = std::vector<npair>(ilist_n0_bnd[face].begin(), ilist_n0_bnd[face].end());
+		ilist_d_bnd[face] = std::vector<dpair>(ilist_d0_bnd[face].begin(), ilist_d0_bnd[face].end());
+	}
 }
 
 void grid::compute_expansions(gsolve_type type) {
@@ -350,8 +386,7 @@ void grid::compute_multipoles(gsolve_type type) {
 							simd_vector mc;
 							std::array < simd_vector, NDIM > X;
 							for (integer ci = 0; ci != NVERTEX; ++ci) {
-								const integer iiic = child_index(ip, jp, kp,
-										ci);
+								const integer iiic = child_index(ip, jp, kp, ci);
 								mc[ci] = M[lev - 1][iiic]();
 								for (integer d = 0; d != NDIM; ++d) {
 									X[d][ci] = com[lev - 1][iiic][d];

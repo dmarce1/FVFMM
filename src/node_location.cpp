@@ -57,7 +57,9 @@ node_location node_location::get_child(integer c) const {
 
 std::string node_location::to_str() const {
 	char* ptr;
-	asprintf(&ptr, "lev = %i x = %i y = %i z = %i", int(lev), int(xloc[XDIM]), int(xloc[YDIM]), int(xloc[ZDIM]));
+	if( asprintf(&ptr, "lev = %i x = %i y = %i z = %i", int(lev), int(xloc[XDIM]), int(xloc[YDIM]), int(xloc[ZDIM])) == 0 ){
+		abort();
+	}
 	auto str = std::string(ptr);
 	free(ptr);
 	return str;
@@ -144,7 +146,7 @@ std::size_t node_location::unique_id() const {
 	for (integer l = 0; l != lev; ++l) {
 		for (integer d = 0; d != NDIM; ++d) {
 			id <<= std::size_t(1);
-			id |= x[d];
+			id |= x[d] & 1;
 			x[d] >>= std::size_t(1);
 		}
 	}

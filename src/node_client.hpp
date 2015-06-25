@@ -23,8 +23,8 @@ public:
 	hpx::future<void> register_(const node_location&) const;
 	hpx::future<void> unregister(const node_location&) const;
 	hpx::future<integer> regrid_gather() const;
-	hpx::future<void> send_boundary(const std::vector<real>, integer face) const;
-	hpx::future<void> step() const;
+	hpx::future<void> send_boundary(const std::vector<real>, integer rk, integer face) const;
+	hpx::future<real> step() const;
 	hpx::future<void> regrid() const;
 
 };

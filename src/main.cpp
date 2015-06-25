@@ -1,4 +1,3 @@
-
 #include "node_server.hpp"
 #include "node_client.hpp"
 #ifndef NDEBUG
@@ -18,12 +17,22 @@ int hpx_main(int argc, char* argv[]) {
 	auto root_id = hpx::new_ < node_server > (hpx::find_here()).get();
 	node_client root_client(root_id);
 	root_client.register_(node_location()).get();
-	root_client.regrid().get();
-	hpx::async<output_action_type>(hpx::find_here(), "X.0.silo").get();
-	root_client.step().get();
-	hpx::async<output_action_type>(hpx::find_here(), "X.1.silo").get();
+	for (integer l = 0; l < MAX_LEVEL; ++l) {
+		root_client.regrid().get();
+	}
+	hpx::async < output_action_type > (hpx::find_here(), "X.0.silo").get();
+	real t = ZERO;
+	real tmax = 0.05;
+	integer step_num = 0;
+	while (t < tmax) {
+		real dt = root_client.step().get();
+		printf("%i %e %e\n", int(step_num), double(t), double(dt));
+		t += dt;
+		++step_num;
+	}
+	hpx::async < output_action_type > (hpx::find_here(), "X.1.silo").get();
 	root_client.unregister(node_location()).get();
-	printf( "Exiting...\n");
+	printf("Exiting...\n");
 	return hpx::finalize();
 }
 

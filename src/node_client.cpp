@@ -21,7 +21,6 @@ hpx::future<integer> node_client::regrid_gather() const {
 }
 
 
-
 hpx::future<void> node_client::regrid_scatter(integer a, integer b) const {
 	return hpx::async<typename node_server::regrid_scatter_action>(get_gid(), a, b);
 }
@@ -34,12 +33,12 @@ hpx::future<void> node_client::unregister(const node_location& nloc) const {
 	return hpx::unregister_id_with_basename("node_location", nloc.unique_id());
 }
 
-hpx::future<void> node_client::send_boundary(const std::vector<real> data, integer face) const {
-	return hpx::async<typename node_server::send_boundary_action>(get_gid(), data, face);
+hpx::future<void> node_client::send_boundary(const std::vector<real> data, integer rk, integer face) const {
+	return hpx::async<typename node_server::send_boundary_action>(get_gid(), data, rk, face);
 }
 
 
-hpx::future<void> node_client::step() const {
+hpx::future<real> node_client::step() const {
 	return hpx::async<typename node_server::step_action>(get_gid());
 }
 

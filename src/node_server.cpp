@@ -26,7 +26,7 @@ std::atomic<integer> node_server::static_initializing(0);
 std::list<const node_server*> node_server::local_node_list;
 hpx::lcos::local::spinlock node_server::local_node_list_lock;
 
-void node_server::collect_boundaries() {
+void node_server::collect_boundaries(integer rk) {
 	std::vector<hpx::future<void>> send_futs(NFACE);
 	std::array<bool, NFACE> is_physical;
 	for (integer face = 0; face != NFACE; ++face) {
@@ -37,12 +37,12 @@ void node_server::collect_boundaries() {
 			is_physical[face] = my_location.is_physical_boundary(face);
 			if (!is_physical[face]) {
 				const auto bdata = get_boundary(face);
-				send_futs[face] = siblings[face].send_boundary(bdata, face ^ 1);
+				send_futs[face] = siblings[face].send_boundary(bdata, rk, face ^ 1);
 			}
 		}
 		for (integer face = 2 * dim; face != 2 * dim + 2; ++face) {
 			if (!is_physical[face]) {
-				const std::vector<real> bdata = sibling_channels[face]->get();
+				const std::vector<real> bdata = sibling_channels[rk][face]->get();
 				set_boundary(bdata, face);
 			} else {
 				grid_ptr->set_physical_boundaries(face);
@@ -52,26 +52,28 @@ void node_server::collect_boundaries() {
 	hpx::wait_all(send_futs.begin(), send_futs.end());
 }
 
-void node_server::step() {
+real node_server::step() {
+	real dt = ZERO;
 
 	if (is_refined) {
 
-		std::vector<hpx::future<void>> child_futs;
+		std::vector<hpx::future<real>> child_futs;
 		child_futs.resize(NCHILD);
 		for (integer ci = 0; ci != NCHILD; ++ci) {
 			child_futs[ci] = children[ci].step();
 		}
 		reduce_this_timestep(std::numeric_limits<real>::max());
 		hpx::wait_all(child_futs.begin(), child_futs.end());
+		dt = global_timestep_channel->get();
 
 	} else {
 
-		real dt, a;
+		real a;
 		const real dx = TWO / real(INX << my_location.level());
 		real cfl0 = cfl;
 		grid_ptr->store();
 
-		for (integer rk = 0; rk < 2; ++rk) {
+		for (integer rk = 0; rk < NRK; ++rk) {
 			grid_ptr->reconstruct();
 			a = grid_ptr->compute_fluxes();
 			if (rk == 0) {
@@ -84,12 +86,12 @@ void node_server::step() {
 				dt = global_timestep_channel->get();
 			}
 			grid_ptr->next_u(0, dt);
-			collect_boundaries();
+			collect_boundaries(rk);
 		}
 	}
 
 	++step_num;
-
+	return dt;
 }
 
 void node_server::reduce_this_timestep(double dt) {
@@ -126,9 +128,7 @@ real node_server::get_local_timestep() {
 void node_server::set_global_timestep(real t) {
 	boost::lock_guard<hpx::lcos::local::spinlock> lock(local_node_list_lock);
 	for (auto i = local_node_list.begin(); i != local_node_list.end(); ++i) {
-		if (!(*i)->is_refined) {
-			(*i)->global_timestep_channel->set_value(t);
-		}
+		(*i)->global_timestep_channel->set_value(t);
 	}
 }
 
@@ -157,8 +157,10 @@ void node_server::initialize(real t) {
 	}
 	is_refined = false;
 	siblings.resize(NFACE);
-	for (integer face = 0; face != NFACE; ++face) {
-		sibling_channels[face] = std::make_shared<channel<std::vector<real>>>();
+	for (integer rk = 0; rk != NRK; ++rk) {
+		for (integer face = 0; face != NFACE; ++face) {
+			sibling_channels[rk][face] = std::make_shared<channel<std::vector<real>>>();
+		}
 	}
 	current_time = t;
 	const real dx = TWO / real(INX << my_location.level());
@@ -270,10 +272,10 @@ void node_server::regrid_scatter(integer a, integer total) {
 			sib_futs[si] = hpx::make_ready_future(node_client(hpx::id_type()));
 		}
 	}
+	printf("Setup done %llx %s\n", integer(my_location.unique_id()), my_location.to_str().c_str());
 	for (integer si = 0; si != NFACE; ++si) {
 		siblings[si] = sib_futs[si].get();
 	}
-	printf("Done %llx\n", integer(my_location.unique_id()));
 }
 
 integer node_server::get_boundary_size(std::vector<std::array<integer, NDIM>>& lb,
@@ -415,6 +417,6 @@ void node_server::output(const std::string& filename) {
 	hpx::wait_all(futs.begin(), futs.end());
 }
 
-void node_server::recv_boundary(const std::vector<real>& bdata, integer face) {
-	sibling_channels[face]->set_value(bdata);
+void node_server::recv_boundary(const std::vector<real>& bdata, integer rk, integer face) {
+	sibling_channels[rk][face]->set_value(bdata);
 }

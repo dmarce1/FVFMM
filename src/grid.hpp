@@ -71,6 +71,8 @@ private:
 	std::vector<std::vector<expansion> > L_c;
 	std::vector<npair> ilist_n;
 	std::vector<dpair> ilist_d;
+	std::array<std::vector<dpair>,NFACE> ilist_d_bnd;
+	std::array<std::vector<npair>,NFACE> ilist_n_bnd;
 	static bool float_eq(real a, real b);
 	static bool xpoint_eq(const xpoint& a, const xpoint& b);
 public:
@@ -95,6 +97,7 @@ public:
 	void solve_gravity(gsolve_type = RHO);
 	void compute_multipoles(gsolve_type);
 	void compute_interactions(gsolve_type);
+	void compute_boundary_interactions(gsolve_type, integer face);
 	void compute_expansions(gsolve_type);
 	real get_time() const;
 	integer get_step() const;

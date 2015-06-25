@@ -13,11 +13,16 @@
 template<class T>
 class channel {
 private:
+#ifndef NDEBUG
 	bool set;
+#endif
 	hpx::future<T> future;
 	hpx::promise<T> promise;
 public:
 	channel() {
+#ifndef NDEBUG
+		set = false;
+#endif
 		future = promise.get_future();
 	}
 	~channel() = default;
@@ -28,13 +33,20 @@ public:
 
 	template<class U>
 	void set_value( U value ) {
+		assert(!set);
 		promise.set_value(value);
+#ifndef NDEBUG
+		set = true;
+#endif
 	}
 
 	T get() {
 		T data = future.get();
 		promise.reset();
 		future = promise.get_future();
+#ifndef NDEBUG
+		set = false;
+#endif
 		return data;
 	}
 

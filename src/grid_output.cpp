@@ -2,6 +2,7 @@
 #include <silo.h>
 #include <fstream>
 #include <cmath>
+#include <thread>
 
 bool grid::float_eq(real a, real b) {
 	return std::abs(a - b) < 1.0e-10;
@@ -67,7 +68,7 @@ grid::output_list_type grid::get_output_list() const {
 
 	std::set<node_point>& node_list = rc.nodes;
 	std::list<integer>& zone_list = rc.zones;
-	std::array<std::vector<real>,NF+NGF>& data = rc.data;
+	std::array<std::vector<real>, NF + NGF>& data = rc.data;
 
 	for (integer field = 0; field != NF + NGF; ++field) {
 		data[field].resize(INX * INX * INX);
@@ -114,47 +115,50 @@ grid::output_list_type grid::get_output_list() const {
 
 void grid::output(const output_list_type& olists, const char* filename) {
 
-	const std::set<node_point>& node_list = olists.nodes;
-	const std::list<integer>& zone_list = olists.zones;
+	std::thread(
+			[=]() {
+				const std::set<node_point>& node_list = olists.nodes;
+				const std::list<integer>& zone_list = olists.zones;
 
-	const int nzones = zone_list.size() / NVERTEX;
-	std::vector<int> zone_nodes(nzones * NVERTEX);
-	integer index = 0;
-	for (auto iter = std::begin(zone_list); iter != std::end(zone_list); ++iter) {
-		zone_nodes[index] = *iter;
-		++index;
-	}
+				const int nzones = zone_list.size() / NVERTEX;
+				std::vector<int> zone_nodes(nzones * NVERTEX);
+				integer index = 0;
+				for (auto iter = std::begin(zone_list); iter != std::end(zone_list); ++iter) {
+					zone_nodes[index] = *iter;
+					++index;
+				}
 
-	const int nnodes = node_list.size();
-	std::vector<double> x_coord(nnodes);
-	std::vector<double> y_coord(nnodes);
-	std::vector<double> z_coord(nnodes);
-	std::array<double*, NDIM> node_coords = { x_coord.data(), y_coord.data(), z_coord.data() };
-	for (auto iter = std::begin(node_list); iter != std::end(node_list); ++iter) {
-		x_coord[iter->index] = iter->pt[0];
-		y_coord[iter->index] = iter->pt[1];
-		z_coord[iter->index] = iter->pt[2];
-	}
+				const int nnodes = node_list.size();
+				std::vector<double> x_coord(nnodes);
+				std::vector<double> y_coord(nnodes);
+				std::vector<double> z_coord(nnodes);
+				std::array<double*, NDIM> node_coords = {x_coord.data(), y_coord.data(), z_coord.data()};
+				for (auto iter = std::begin(node_list); iter != std::end(node_list); ++iter) {
+					x_coord[iter->index] = iter->pt[0];
+					y_coord[iter->index] = iter->pt[1];
+					z_coord[iter->index] = iter->pt[2];
+				}
 
-	constexpr
-	int nshapes = 1;
-	int shapesize[1] = { NVERTEX };
-	int shapetype[1] = { DB_ZONETYPE_HEX };
-	int shapecnt[1] = { nzones };
-	const char* coord_names[NDIM] = { "x", "y", "z" };
+				constexpr
+				int nshapes = 1;
+				int shapesize[1] = {NVERTEX};
+				int shapetype[1] = {DB_ZONETYPE_HEX};
+				int shapecnt[1] = {nzones};
+				const char* coord_names[NDIM] = {"x", "y", "z"};
 
-	DBfile *db = DBCreateReal(filename, DB_CLOBBER, DB_LOCAL, "Euler Mesh", DB_PDB);
-	DBPutZonelist2(db, "zones", nzones, int(NDIM), zone_nodes.data(), nzones * NVERTEX, 0, 0, 0, shapetype, shapesize,
-			shapecnt, nshapes, nullptr);
-	DBPutUcdmesh(db, "mesh", int(NDIM), coord_names, node_coords.data(), nnodes, nzones, "zones", nullptr, DB_DOUBLE,
-			nullptr);
+				DBfile *db = DBCreateReal(filename, DB_CLOBBER, DB_LOCAL, "Euler Mesh", DB_PDB);
+				DBPutZonelist2(db, "zones", nzones, int(NDIM), zone_nodes.data(), nzones * NVERTEX, 0, 0, 0, shapetype, shapesize,
+						shapecnt, nshapes, nullptr);
+				DBPutUcdmesh(db, "mesh", int(NDIM), coord_names, node_coords.data(), nnodes, nzones, "zones", nullptr, DB_DOUBLE,
+						nullptr);
 
-	const char* field_names[] = { "rho", "egas", "sx", "sy", "sz", "tau", "pot", "phi", "gx", "gy", "gz" };
-	for (int field = 0; field != NF + NGF; ++field) {
-		DBPutUcdvar1(db, field_names[field], "mesh", olists.data[field].data(), nzones, nullptr, 0, DB_DOUBLE, DB_ZONECENT,
-				nullptr);
-	}
-	DBClose(db);
+				const char* field_names[] = {"rho", "egas", "sx", "sy", "sz", "tau", "pot", "phi", "gx", "gy", "gz"};
+				for (int field = 0; field != NF + NGF; ++field) {
+					DBPutUcdvar1(db, field_names[field], "mesh", olists.data[field].data(), nzones, nullptr, 0, DB_DOUBLE, DB_ZONECENT,
+							nullptr);
+				}
+				DBClose(db);
+			}).join();
 }
 
 void grid::save(const char* filename) const {

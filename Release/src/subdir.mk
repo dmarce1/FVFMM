@@ -4,6 +4,7 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 CPP_SRCS += \
+../src/channel.cpp \
 ../src/grid.cpp \
 ../src/grid_fmm.cpp \
 ../src/grid_output.cpp \
@@ -17,6 +18,7 @@ CPP_SRCS += \
 ../src/taylor.cpp 
 
 OBJS += \
+./src/channel.o \
 ./src/grid.o \
 ./src/grid_fmm.o \
 ./src/grid_output.o \
@@ -30,6 +32,7 @@ OBJS += \
 ./src/taylor.o 
 
 CPP_DEPS += \
+./src/channel.d \
 ./src/grid.d \
 ./src/grid_fmm.d \
 ./src/grid_output.d \

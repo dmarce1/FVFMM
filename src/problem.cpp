@@ -11,7 +11,7 @@
 
 std::vector<real> sod_shock_tube(real x, real y, real z) {
 	std::vector<real> u(NF, real(0));
-	if (x > real(0)) {
+	if (x + y + z > real(0)) {
 		u[rho_i] = 1.0;
 		u[egas_i] = 2.5;
 	} else {

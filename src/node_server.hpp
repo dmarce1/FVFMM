@@ -30,7 +30,7 @@ private:
 	bool is_refined;
 	std::array<integer, NVERTEX> child_descendant_count;
 	integer locality_id;
-	std::array<std::shared_ptr<channel<std::vector<real>>> ,NFACE> sibling_channels;
+	std::array<std::array<std::shared_ptr<channel<std::vector<real>>> ,NFACE>,NRK> sibling_channels;
 	std::list<const node_server*>::iterator my_list_iterator;
 
 	static std::list<const node_server*> local_node_list;
@@ -48,7 +48,7 @@ private:
 	static void reduce_this_timestep(double dt);
 
 	void initialize(real);
-	void collect_boundaries();
+	void collect_boundaries(integer rk);
 	static void static_initialize();
 public:
 
@@ -84,10 +84,10 @@ public:
 	void regrid_scatter(integer, integer);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, regrid_scatter, regrid_scatter_action);
 
-	void recv_boundary(const std::vector<real>&, integer face);
+	void recv_boundary(const std::vector<real>&, integer rk, integer face);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_boundary, send_boundary_action);
 
-	void step();
+	real step();
 	HPX_DEFINE_COMPONENT_ACTION(node_server, step, step_action);
 
 	void regrid();
