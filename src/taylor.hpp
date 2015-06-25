@@ -311,6 +311,10 @@ public:
 	T* ptr() {
 		return data.data();
 	}
+
+	const T* ptr() const {
+		return data.data();
+	}
 };
 
 template<int N, class T>

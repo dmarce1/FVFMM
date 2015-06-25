@@ -4,5 +4,5 @@
 
 USER_OBJS :=
 
-LIBS := -lgfortran -ltcmalloc -lsilo
+LIBS := -lsilo -lmpi
 

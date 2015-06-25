@@ -8,6 +8,8 @@
 #include "simd.hpp"
 #include "stop_watch.hpp"
 
+#include <boost/thread/lock_guard.hpp>
+
 void grid::solve_gravity(gsolve_type type) {
 
 	compute_multipoles(type);
@@ -29,9 +31,7 @@ void grid::solve_gravity(gsolve_type type) {
 }
 
 void grid::compute_interactions(gsolve_type type) {
-	stop_watch ws;
 
-	ws.start();
 	npair np;
 	dpair dp;
 	std::array < simd_vector, NDIM > X;
@@ -60,13 +60,15 @@ void grid::compute_interactions(gsolve_type type) {
 				if (j >= 10) {
 					if (type == RHO) {
 						n0.ptr()[j][i] = M[lev][iii1].ptr()[j]
-								- M[lev][iii0].ptr()[j] * (M[lev][iii1]() / M[lev][iii0]());
+								- M[lev][iii0].ptr()[j]
+										* (M[lev][iii1]() / M[lev][iii0]());
 					} else {
 						n0.ptr()[j][i] = ZERO;
 					}
 					if (type == RHO) {
 						n1.ptr()[j][i] = M[lev][iii0].ptr()[j]
-								- M[lev][iii1].ptr()[j] * (M[lev][iii0]() / M[lev][iii1]());
+								- M[lev][iii1].ptr()[j]
+										* (M[lev][iii0]() / M[lev][iii1]());
 					} else {
 						n1.ptr()[j][i] = ZERO;
 					}
@@ -115,7 +117,8 @@ void grid::compute_interactions(gsolve_type type) {
 					A1(a) -= m1(c, b) * tmp;
 					if (type == RHO) {
 						for (integer d = 0; d != NDIM; ++d) {
-							const auto tmp = D(a, b, c, d) * (real(1) / real(6));
+							const auto tmp = D(a, b, c, d)
+									* (real(1) / real(6));
 							B0(a) -= n0(b, c, d) * tmp;
 							B1(a) -= n1(b, c, d) * tmp;
 						}
@@ -195,22 +198,22 @@ void grid::compute_interactions(gsolve_type type) {
 			gz1 = -m1 * dX[ZDIM];
 		}
 		for (integer i = 0; i != simd_len && i + li < dsize; ++i) {
-			const integer iii0 = ilist_d[li + i].first;
-			const integer iii1 = ilist_d[li + i].second;
-			L[lev][iii0]() += phi0[i];
-			L[lev][iii1]() += phi1[i];
-			L[lev][iii0](XDIM) += gx0[i];
-			L[lev][iii1](XDIM) += gx1[i];
-			L[lev][iii0](YDIM) += gy0[i];
-			L[lev][iii1](YDIM) += gy1[i];
-			L[lev][iii0](ZDIM) += gz0[i];
-			L[lev][iii1](ZDIM) += gz1[i];
+			{
+				const integer iii0 = ilist_d[li + i].first;
+				L[lev][iii0]() += phi0[i];
+				L[lev][iii0](XDIM) += gx0[i];
+				L[lev][iii0](YDIM) += gy0[i];
+				L[lev][iii0](ZDIM) += gz0[i];
+			}
+			{
+				const integer iii1 = ilist_d[li + i].second;
+				L[lev][iii1]() += phi1[i];
+				L[lev][iii1](XDIM) += gx1[i];
+				L[lev][iii1](YDIM) += gy1[i];
+				L[lev][iii1](ZDIM) += gz1[i];
+			}
 		}
-
 	}
-
-	ws.stop();
-	printf( "%e\n", ws.get());
 }
 
 void grid::compute_ilist() {
@@ -225,18 +228,26 @@ void grid::compute_ilist() {
 			for (integer j0 = HBW; j0 != nx - HBW; ++j0) {
 				for (integer k0 = HBW; k0 != nx - HBW; ++k0) {
 					const integer iii0 = i0 * nx * nx + j0 * nx + k0;
-					const integer imin = std::max(integer(HBW), 2 * ((i0 / 2) - 1));
-					const integer jmin = std::max(integer(HBW), 2 * ((j0 / 2) - 1));
-					const integer kmin = std::max(integer(HBW), 2 * ((k0 / 2) - 1));
-					const integer imax = std::min(integer(nx - HBW - 1), 2 * ((i0 / 2) + 1) + 1);
-					const integer jmax = std::min(integer(nx - HBW - 1), 2 * ((j0 / 2) + 1) + 1);
-					const integer kmax = std::min(integer(nx - HBW - 1), 2 * ((k0 / 2) + 1) + 1);
+					const integer imin = std::max(integer(HBW),
+							2 * ((i0 / 2) - 1));
+					const integer jmin = std::max(integer(HBW),
+							2 * ((j0 / 2) - 1));
+					const integer kmin = std::max(integer(HBW),
+							2 * ((k0 / 2) - 1));
+					const integer imax = std::min(integer(nx - HBW - 1),
+							2 * ((i0 / 2) + 1) + 1);
+					const integer jmax = std::min(integer(nx - HBW - 1),
+							2 * ((j0 / 2) + 1) + 1);
+					const integer kmax = std::min(integer(nx - HBW - 1),
+							2 * ((k0 / 2) + 1) + 1);
 					for (integer i1 = imin; i1 <= imax; ++i1) {
 						for (integer j1 = jmin; j1 <= jmax; ++j1) {
 							for (integer k1 = kmin; k1 <= kmax; ++k1) {
-								const integer iii1 = i1 * nx * nx + j1 * nx + k1;
+								const integer iii1 = i1 * nx * nx + j1 * nx
+										+ k1;
 								integer max_dist = std::max(std::abs(k0 - k1),
-										std::max(std::abs(i0 - i1), std::abs(j0 - j1)));
+										std::max(std::abs(i0 - i1),
+												std::abs(j0 - j1)));
 								if (iii1 > iii0) {
 									if (max_dist > 1 && lev != 0) {
 										np.lev = lev;
@@ -257,8 +268,8 @@ void grid::compute_ilist() {
 		}
 		--lev;
 	}
-	ilist_d = std::vector<dpair>(ilist_d0.begin(), ilist_d0.end());
 	ilist_n = std::vector<npair>(ilist_n0.begin(), ilist_n0.end());
+	ilist_d = std::vector<dpair>(ilist_d0.begin(), ilist_d0.end());
 }
 
 void grid::compute_expansions(gsolve_type type) {
@@ -339,7 +350,8 @@ void grid::compute_multipoles(gsolve_type type) {
 							simd_vector mc;
 							std::array < simd_vector, NDIM > X;
 							for (integer ci = 0; ci != NVERTEX; ++ci) {
-								const integer iiic = child_index(ip, jp, kp, ci);
+								const integer iiic = child_index(ip, jp, kp,
+										ci);
 								mc[ci] = M[lev - 1][iiic]();
 								for (integer d = 0; d != NDIM; ++d) {
 									X[d][ci] = com[lev - 1][iiic][d];

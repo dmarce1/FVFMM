@@ -12,20 +12,25 @@
 #include <vector>
 
 typedef double real;
-typedef long int integer;
+typedef long long int integer;
+typedef char byte;
 
 #define USE_SIMD
 
-//#define USE_LZ_CORRECT
 
-const integer MP = 1 + 3 + 6 + 10;
-const integer LP = 1 + 3 + 6 + 10;
+#include <hpx/hpx.hpp>
+#include <hpx/runtime/components/migrate_component.hpp>
+
+const integer MAX_LEVEL = 1;
+enum boundary_type {OUTFLOW, REFLECT};
 
 const integer NDIM = 3;
 
 const integer HBW = 2;
-const integer INX = 32;
+const integer GBW = 2;
+const integer INX = 8;
 const integer HNX = 2 * HBW + INX;
+const integer GNX = 2 * GBW + INX;
 const integer HN3 = HNX * HNX * HNX;
 const integer NF = 7;
 const integer NDIR = 27;
@@ -60,6 +65,7 @@ const integer FZP = 5;
 
 const integer NFACE = 2 * NDIM;
 const integer NVERTEX = 8;
+const integer NCHILD = 8;
 const real fgamma = real(5) / real(3);
 
 const real ZERO = real(0);
@@ -79,6 +85,8 @@ const integer gx_i = 1;
 const integer gy_i = 2;
 const integer gz_i = 3;
 
+
+const std::array<boundary_type, NFACE> boundary_types = {REFLECT, REFLECT, REFLECT, REFLECT, REFLECT, REFLECT};
 
 
 #endif /* TYPES_HPP_ */

@@ -23,21 +23,24 @@ real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<rea
 	const integer v_i = vx_i + (dimension == XDIM ? YDIM : XDIM);
 	const integer w_i = vx_i + (dimension == ZDIM ? YDIM : ZDIM);
 	real max_lambda = real(0);
+	integer this_simd_len;
 
 	for (std::size_t iii = 0; iii < sz; iii += simd_len) {
 		std::array<simd_vector, NF> ur;
 		std::array<simd_vector, NF> ul;
-		for (integer jjj = 0; jjj != simd_len && jjj + iii < sz; ++jjj) {
+		for (integer jjj = 0; jjj != simd_len; ++jjj) {
 			for (integer field = 0; field != NF; ++field) {
-				ur[field][jjj] = UR[field][iii + jjj];
-				ul[field][jjj] = UL[field][iii + jjj];
+				const integer index = std::min(integer(iii + jjj), integer(sz - 1));
+				ur[field][jjj] = UR[field][index];
+				ul[field][jjj] = UL[field][index];
 			}
 		}
+		this_simd_len = std::min(integer(simd_len), integer(sz - iii));
 		const simd_vector v_r = ur[u_i] / ur[rho_i];
 		simd_vector ei_r = ur[egas_i] - HALF * (ur[u_i] * ur[u_i] + ur[v_i] * ur[v_i] + ur[w_i] * ur[w_i]) / ur[rho_i];
 
-		for (integer j = 0; j != simd_len; ++j) {
-			if (ei_r[j] < de_switch2 * UR[egas_i][j]) {
+		for (integer j = 0; j != this_simd_len; ++j) {
+			if (ei_r[j] < de_switch2 * ur[egas_i][j]) {
 				ei_r[j] = std::pow(ur[tau_i][j], fgamma);
 			}
 		}
@@ -48,7 +51,7 @@ real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<rea
 		const simd_vector v_l = ul[u_i] / ul[rho_i];
 		simd_vector ei_l = ul[egas_i] - HALF * (ul[u_i] * ul[u_i] + ul[v_i] * ul[v_i] + ul[w_i] * ul[w_i]) / ul[rho_i];
 
-		for (integer j = 0; j != simd_len; ++j) {
+		for (integer j = 0; j != this_simd_len; ++j) {
 			if (ei_l[j] < de_switch2 * ul[egas_i][j]) {
 				ei_l[j] = std::pow(ul[tau_i][j], fgamma);
 			}

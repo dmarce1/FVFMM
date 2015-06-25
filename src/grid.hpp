@@ -13,6 +13,9 @@
 #include "taylor.hpp"
 #include "space_vector.hpp"
 #include <functional>
+#include <list>
+#include <set>
+
 
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
@@ -31,12 +34,24 @@ struct npair {
 typedef std::pair<integer, integer> dpair;
 
 class grid {
+public:
+	typedef std::array<real, NDIM> xpoint;
+	struct node_point {
+		xpoint pt;
+		integer index;
+		bool operator==(const node_point& other) const;
+		bool operator<(const node_point& other) const;
+	};
 private:
+	static constexpr integer thread_cnt = 8;
+
+	std::array<std::vector<real>, NF> U;
+	std::vector<std::vector<multipole> > M;
 	real dx, t;
+	std::array<real, NDIM> xmin;
 	integer step_num;
 	integer nlevel;
 	std::array<std::vector<real>, NF> U0;
-	std::array<std::vector<real>, NF> U;
 	std::array<std::vector<real>, NDIM> S0;
 	std::array<std::vector<real>, NDIM> S;
 	std::array<std::vector<real>, NF> src;
@@ -52,24 +67,28 @@ private:
 	std::array<std::vector<real>, NGF> G0;
 	std::vector<real> dphi_dt;
 	std::vector<std::vector<space_vector> > com;
-	std::vector<std::vector<multipole> > M;
 	std::vector<std::vector<expansion> > L;
 	std::vector<std::vector<expansion> > L_c;
 	std::vector<npair> ilist_n;
 	std::vector<dpair> ilist_d;
+	static bool float_eq(real a, real b);
+	static bool xpoint_eq(const xpoint& a, const xpoint& b);
 public:
+
+	struct output_list_type {
+		std::set<node_point> nodes;
+		std::list<integer> zones;
+		std::array<std::vector<real>,NF+NGF> data;
+	};
+	static void merge_output_lists(output_list_type& l1, const output_list_type& l2);
+
+	real& hydro_value(integer, integer, integer, integer);
+	real hydro_value(integer, integer, integer, integer) const;
+	multipole& multipole_value(integer, integer, integer, integer);
+	const multipole& multipole_value(integer, integer, integer, integer) const;
+	bool refine_me(integer lev) const;
+	integer level_count() const;
 	void compute_ilist();
-	template<class Archive>
-	void serialize(Archive& arc, const unsigned) {
-		arc & U;
-		arc & S;
-		arc & G;
-		arc & U_out;
-		arc & S_out;
-		arc & dx;
-		arc & t;
-		arc & step_num;
-	}
 	void compute_dudt();
 	void egas_to_etot();
 	void etot_to_egas();
@@ -82,16 +101,32 @@ public:
 	void save(const char* filename) const;
 	void load(const char* filename);
 	void diagnostics();
-	grid(const std::function<std::vector<real>(real, real, real)>&);
+	grid(const std::function<std::vector<real>(real, real, real)>&, real dx = TWO / real(INX),
+			std::array<real, NDIM> xmin = { -ONE, -ONE, -ONE });
+	grid(real dx = TWO / real(INX), std::array<real, NDIM> xmin = { -ONE, -ONE, -ONE });
+	void allocate();
 	void reconstruct();
 	void store();
 	void restore();
 	real compute_fluxes();
 	void compute_sources();
 	void boundaries();
+	void set_physical_boundaries(integer);
 	void next_u(integer rk, real dt);
 	real step();
-	void output(const char*);
+	static void output(const output_list_type&, const char*);
+	output_list_type get_output_list() const;
+	template<class Archive>
+	void serialize(Archive& arc, const unsigned) {
+		arc & U;
+		arc & S;
+		arc & G;
+		arc & U_out;
+		arc & S_out;
+		arc & dx;
+		arc & t;
+		arc & step_num;
+	}
 };
 
 #endif /* GRID_HPP_ */

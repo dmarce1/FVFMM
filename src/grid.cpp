@@ -9,6 +9,36 @@
 #include <cmath>
 #include <cassert>
 
+bool grid::refine_me(integer lev) const {
+	return lev < MAX_LEVEL;
+}
+
+integer grid::level_count() const {
+	return nlevel;
+}
+
+real& grid::hydro_value(integer f, integer i, integer j, integer k) {
+	return U[f][i * DNX + j * DNY + k * DNZ];
+}
+
+multipole& grid::multipole_value(integer lev, integer i, integer j, integer k) {
+	const integer bw = HBW;
+	const integer inx = INX >> lev;
+	const integer nx = 2 * bw + inx;
+	return M[lev][i * nx * nx + j * nx + k];
+}
+
+const multipole& grid::multipole_value(integer lev, integer i, integer j, integer k) const {
+	const integer bw = HBW;
+	const integer inx = INX >> lev;
+	const integer nx = 2 * bw + inx;
+	return M[lev][i * nx * nx + j * nx + k];
+}
+
+real grid::hydro_value(integer f, integer i, integer j, integer k) const {
+	return U[f][i * DNX + j * DNY + k * DNZ];
+}
+
 inline real minmod(real a, real b) {
 	return (std::copysign(HALF, a) + std::copysign(HALF, b)) * std::min(std::abs(a), std::abs(b));
 }
@@ -17,17 +47,36 @@ inline real minmod_theta(real a, real b, real theta) {
 	return minmod(theta * minmod(a, b), HALF * (a + b));
 }
 
-grid::grid(const std::function<std::vector<real>(real, real, real)>& init_func) :
-		U_out(NF, ZERO), U_out0(NF, ZERO), S_out(NDIM, ZERO), S_out0(NDIM, ZERO), dphi_dt(HN3) {
-	dx = TWO / real(INX);
+grid::grid(real _dx, std::array<real, NDIM> _xmin) {
+	dx = _dx;
+	xmin = _xmin;
+	allocate();
+}
+
+void grid::allocate() {
 	t = ZERO;
 	step_num = 0;
+	U_out0 = std::vector<real>(NF, ZERO);
+	U_out = std::vector<real>(NF, ZERO);
+	S_out0 = std::vector<real>(NF, ZERO);
+	S_out = std::vector<real>(NF, ZERO);
+	dphi_dt = std::vector<real>(HN3);
 	for (integer field = 0; field != NGF; ++field) {
 		G[field].resize(HN3);
 		G0[field].resize(HN3);
 	}
 	for (integer dim = 0; dim != NDIM; ++dim) {
 		X[dim].resize(HN3);
+	}
+	for (integer i = 0; i != HNX; ++i) {
+		for (integer j = 0; j != HNX; ++j) {
+			for (integer k = 0; k != HNX; ++k) {
+				const integer iii = i * DNX + j * DNY + k * DNZ;
+				X[XDIM][iii] = (real(i - HBW) + HALF) * dx + xmin[XDIM];
+				X[YDIM][iii] = (real(j - HBW) + HALF) * dx + xmin[YDIM];
+				X[ZDIM][iii] = (real(k - HBW) + HALF) * dx + xmin[ZDIM];
+			}
+		}
 	}
 	for (integer field = 0; field != NDIM; ++field) {
 		S0[field].resize(HN3);
@@ -43,24 +92,6 @@ grid::grid(const std::function<std::vector<real>(real, real, real)>& init_func) 
 		}
 		for (integer face = 0; face != NFACE; ++face) {
 			Uf[face][field].resize(HN3);
-		}
-	}
-	for (integer i = 0; i != HNX; ++i) {
-		for (integer j = 0; j != HNX; ++j) {
-			for (integer k = 0; k != HNX; ++k) {
-				const integer iii = i * DNX + j * DNY + k * DNZ;
-				X[XDIM][iii] = (real(i - HBW) + HALF) * dx - ONE;
-				X[YDIM][iii] = (real(j - HBW) + HALF) * dx - ONE;
-				X[ZDIM][iii] = (real(k - HBW) + HALF) * dx - ONE;
-				std::vector<real> this_u = init_func(X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii]);
-				for (integer field = 0; field != NF; ++field) {
-					U[field][iii] = this_u[field];
-				}
-				for (integer d = 0; d != NDIM; ++d) {
-					S[d][iii] = ZERO;
-
-				}
-			}
 		}
 	}
 	nlevel = 0;
@@ -87,7 +118,30 @@ grid::grid(const std::function<std::vector<real>(real, real, real)>& init_func) 
 		}
 	}
 	compute_ilist();
-	solve_gravity();
+
+}
+
+grid::grid(const std::function<std::vector<real>(real, real, real)>& init_func, real _dx, std::array<real, NDIM> _xmin) :
+		U_out(NF, ZERO), U_out0(NF, ZERO), S_out(NDIM, ZERO), S_out0(NDIM, ZERO), dphi_dt(HN3) {
+	dx = _dx;
+	xmin = _xmin;
+	printf("Creating grid at %e %e %e w dx = %e\n", xmin[0], xmin[1], xmin[2], dx);
+	allocate();
+	for (integer i = 0; i != HNX; ++i) {
+		for (integer j = 0; j != HNX; ++j) {
+			for (integer k = 0; k != HNX; ++k) {
+				const integer iii = i * DNX + j * DNY + k * DNZ;
+				std::vector<real> this_u = init_func(X[XDIM][iii], X[YDIM][iii], X[ZDIM][iii]);
+				for (integer field = 0; field != NF; ++field) {
+					U[field][iii] = this_u[field];
+				}
+				for (integer d = 0; d != NDIM; ++d) {
+					S[d][iii] = ZERO;
+
+				}
+			}
+		}
+	}
 }
 
 void grid::reconstruct() {
@@ -272,43 +326,41 @@ void grid::restore() {
 }
 
 void grid::boundaries() {
+	for (integer face = 0; face != NFACE; ++face) {
+		set_physical_boundaries(face);
+	}
+}
+
+void grid::set_physical_boundaries(integer face) {
+	const integer dni = face / 2 == XDIM ? DNY : DNX;
+	const integer dnj = face / 2 == ZDIM ? DNY : DNZ;
+	const integer dnk = DN[face / 2];
+	const integer klb = face % 2 == 0 ? 0 : HNX - HBW;
+	const integer kub = face % 2 == 0 ? HBW : HNX;
 	for (integer field = 0; field != NF; ++field) {
-		for (integer k = 0; k != HBW; ++k) {
+		for (integer k = klb; k != kub; ++k) {
 			for (integer j = HBW; j != HNX - HBW; ++j) {
 				for (integer i = HBW; i != HNX - HBW; ++i) {
-					const integer k0 = (2 * HBW - k - 1);
-					U[field][i * DNY + j * DNZ + k * DNX] = U[field][i * DNY + j * DNZ + k0 * DNX];
-					U[field][j * DNY + k * DNZ + i * DNX] = U[field][j * DNY + k0 * DNZ + i * DNX];
-					U[field][k * DNY + i * DNZ + j * DNX] = U[field][k0 * DNY + i * DNZ + j * DNX];
+					const integer k0 = face % 2 == 0 ? (2 * HBW - k - 1) : (2 * (HNX - HBW) - k - 1);
+					const real value = U[field][i * dni + j * dnj + k0 * dnk];
+					real& ref = U[field][i * dni + j * dnj + k * dnk];
+					if (field != sx_i + face / 2) {
+						ref = +value;
+					} else {
+						switch (boundary_types[face]) {
+						case REFLECT:
+							ref = -value;
+							break;
+						case OUTFLOW:
+							if (face % 2 == 0) {
+								ref = std::min(value, ZERO);
+							} else {
+								ref = std::max(value, ZERO);
+							}
+							break;
+						}
+					}
 				}
-			}
-		}
-		for (integer k = HNX - HBW; k != HNX; ++k) {
-			for (integer i = HBW; i != HNX - HBW; ++i) {
-				for (integer j = HBW; j != HNX - HBW; ++j) {
-					const integer k0 = (2 * (HNX - HBW) - k - 1);
-					U[field][i * DNY + j * DNZ + k * DNX] = U[field][i * DNY + j * DNZ + k0 * DNX];
-					U[field][j * DNY + k * DNZ + i * DNX] = U[field][j * DNY + k0 * DNZ + i * DNX];
-					U[field][k * DNY + i * DNZ + j * DNX] = U[field][k0 * DNY + i * DNZ + j * DNX];
-				}
-			}
-		}
-	}
-	for (integer i = HBW; i != HNX - HBW; ++i) {
-		for (integer j = HBW; j != HNX - HBW; ++j) {
-			for (integer k = 0; k != HBW; ++k) {
-				U[sx_i][i * DNY + j * DNZ + k * DNX] = -U[sx_i][i * DNY + j * DNZ + k * DNX];
-				U[sy_i][k * DNY + i * DNZ + j * DNX] = -U[sy_i][k * DNY + i * DNZ + j * DNX];
-				U[sz_i][j * DNY + k * DNZ + i * DNX] = -U[sz_i][j * DNY + k * DNZ + i * DNX];
-			}
-		}
-	}
-	for (integer i = HBW; i != HNX - HBW; ++i) {
-		for (integer j = HBW; j != HNX - HBW; ++j) {
-			for (integer k = HNX - HBW; k != HNX; ++k) {
-				U[sx_i][i * DNY + j * DNZ + k * DNX] = -U[sx_i][i * DNY + j * DNZ + k * DNX];
-				U[sy_i][k * DNY + i * DNZ + j * DNX] = -U[sy_i][k * DNY + i * DNZ + j * DNX];
-				U[sz_i][j * DNY + k * DNZ + i * DNX] = -U[sz_i][j * DNY + k * DNZ + i * DNX];
 			}
 		}
 	}
@@ -358,7 +410,7 @@ void grid::compute_dudt() {
 			}
 		}
 	}
-	solve_gravity(DRHODT);
+//	solve_gravity(DRHODT);
 	for (integer i = HBW; i != HNX - HBW; ++i) {
 		for (integer j = HBW; j != HNX - HBW; ++j) {
 #pragma GCC ivdep
@@ -506,6 +558,7 @@ void grid::next_u(integer rk, real dt) {
 }
 
 real grid::step() {
+
 	bool cfl_redo = false;
 	real cfl0 = cfl;
 	real dt, a;

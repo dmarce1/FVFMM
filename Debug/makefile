@@ -44,7 +44,7 @@ all: FVFMM
 FVFMM: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C++ Linker'
-	g++ $(OBJS) $(USER_OBJS) $(LIBS)  `pkg-config --libs hpx_application_debug` -o "FVFMM" `pkg-config --libs hpx_application_debug`
+	g++ $(OBJS) $(USER_OBJS) $(LIBS)        `pkg-config --libs hpx_application_debug`  -o  "FVFMM"      `pkg-config --libs hpx_application_debug`
 	@echo 'Finished building target: $@'
 	@echo ' '
 
