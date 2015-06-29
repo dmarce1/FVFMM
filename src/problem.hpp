@@ -15,6 +15,6 @@ std::vector<real> sod_shock_tube(real,real,real);
 std::vector<real> star(real,real,real);
 
 
-const auto problem = sod_shock_tube;
+const auto problem = star;
 
 #endif /* PROBLEM_HPP_ */

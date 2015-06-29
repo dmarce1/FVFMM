@@ -47,7 +47,8 @@ inline real minmod_theta(real a, real b, real theta) {
 	return minmod(theta * minmod(a, b), HALF * (a + b));
 }
 
-grid::grid(real _dx, std::array<real, NDIM> _xmin) {
+grid::grid(real _dx, std::array<real, NDIM> _xmin, integer flags) :
+		is_root(flags & GRID_IS_ROOT), is_leaf(flags & GRID_IS_LEAF) {
 	dx = _dx;
 	xmin = _xmin;
 	allocate();
@@ -107,9 +108,13 @@ void grid::allocate() {
 		const integer this_nx = inx + 2 * HBW;
 		const integer sz = this_nx * this_nx * this_nx;
 		com[nlevel].resize(sz);
-		M[nlevel].resize(sz);
-		L[nlevel].resize(sz);
-		L_c[nlevel].resize(sz);
+		if (is_root || (inx >= INX / 2)) {
+			M[nlevel].resize(sz);
+		}
+		if (is_root || (inx >= INX)) {
+			L[nlevel].resize(sz);
+			L_c[nlevel].resize(sz);
+		}
 		++nlevel;
 	}
 	for (integer iii = 0; iii != HN3; ++iii) {
@@ -121,8 +126,10 @@ void grid::allocate() {
 
 }
 
-grid::grid(const std::function<std::vector<real>(real, real, real)>& init_func, real _dx, std::array<real, NDIM> _xmin) :
-		U_out(NF, ZERO), U_out0(NF, ZERO), S_out(NDIM, ZERO), S_out0(NDIM, ZERO), dphi_dt(HN3) {
+grid::grid(const std::function<std::vector<real>(real, real, real)>& init_func, real _dx, std::array<real, NDIM> _xmin,
+		integer flags) :
+		is_root(flags & GRID_IS_ROOT), is_leaf(flags & GRID_IS_LEAF), U_out(NF, ZERO), U_out0(NF, ZERO), S_out(NDIM,
+				ZERO), S_out0(NDIM, ZERO), dphi_dt(HN3) {
 	dx = _dx;
 	xmin = _xmin;
 	printf("Creating grid at %e %e %e w dx = %e\n", xmin[0], xmin[1], xmin[2], dx);
@@ -411,15 +418,6 @@ void grid::compute_dudt() {
 		}
 	}
 //	solve_gravity(DRHODT);
-	for (integer i = HBW; i != HNX - HBW; ++i) {
-		for (integer j = HBW; j != HNX - HBW; ++j) {
-#pragma GCC ivdep
-			for (integer k = HBW; k != HNX - HBW; ++k) {
-				const integer iii = DNX * i + DNY * j + DNZ * k;
-				dUdt[egas_i][iii] += (dphi_dt[iii] * U[rho_i][iii]) * HALF;
-			}
-		}
-	}
 }
 
 void grid::egas_to_etot() {
@@ -437,6 +435,17 @@ void grid::etot_to_egas() {
 }
 
 void grid::next_u(integer rk, real dt) {
+
+	for (integer i = HBW; i != HNX - HBW; ++i) {
+		for (integer j = HBW; j != HNX - HBW; ++j) {
+#pragma GCC ivdep
+			for (integer k = HBW; k != HNX - HBW; ++k) {
+				const integer iii = DNX * i + DNY * j + DNZ * k;
+				dUdt[egas_i][iii] += (dphi_dt[iii] * U[rho_i][iii]) * HALF;
+			}
+		}
+	}
+
 	std::vector<real> ds(NDIM, ZERO);
 	for (integer i = HBW; i != HNX - HBW; ++i) {
 		for (integer j = HBW; j != HNX - HBW; ++j) {

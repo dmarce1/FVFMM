@@ -24,12 +24,12 @@ int hpx_main(int argc, char* argv[]) {
 	real t = ZERO;
 	real tmax = 0.05;
 	integer step_num = 0;
-	while (t < tmax) {
+//	while (t < tmax) {
 		real dt = root_client.step().get();
 		printf("%i %e %e\n", int(step_num), double(t), double(dt));
 		t += dt;
 		++step_num;
-	}
+//	}
 	hpx::async < output_action_type > (hpx::find_here(), "X.1.silo").get();
 	root_client.unregister(node_location()).get();
 	printf("Exiting...\n");

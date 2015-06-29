@@ -18,6 +18,10 @@
 #include "node_location.hpp"
 #include "node_client.hpp"
 
+integer node_location::get_child_index() const {
+	return ((xloc[XDIM] & 1) + (xloc[YDIM] & 1) * 2 + (xloc[YDIM] & 1) * 4);
+}
+
 real node_location::x_location(integer d) const {
 	const real dx = TWO / real(1 << lev);
 	return real(xloc[d]) * dx - ONE;
@@ -57,7 +61,8 @@ node_location node_location::get_child(integer c) const {
 
 std::string node_location::to_str() const {
 	char* ptr;
-	if( asprintf(&ptr, "lev = %i x = %i y = %i z = %i", int(lev), int(xloc[XDIM]), int(xloc[YDIM]), int(xloc[ZDIM])) == 0 ){
+	if (asprintf(&ptr, "lev = %i x = %i y = %i z = %i", int(lev), int(xloc[XDIM]), int(xloc[YDIM]), int(xloc[ZDIM]))
+			== 0) {
 		abort();
 	}
 	auto str = std::string(ptr);
@@ -66,7 +71,7 @@ std::string node_location::to_str() const {
 }
 
 node_location node_location::get_parent() const {
-	assert(lev>=1);
+	assert(lev >= 1);
 	node_location parent;
 	parent.lev = lev - 1;
 	for (integer d = 0; d != NDIM; ++d) {

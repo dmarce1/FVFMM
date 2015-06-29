@@ -12,6 +12,10 @@
 
 class space_vector: public std::array<real, NDIM> {
 public:
+	template<class Archive>
+	void serialize(Archive& arc, unsigned) {
+		arc & *(static_cast<std::array<real, NDIM>*>(this));
+	}
 	space_vector& operator=(real a) {
 		for (integer i = 0; i != NDIM; ++i) {
 			(*this)[i] = a;

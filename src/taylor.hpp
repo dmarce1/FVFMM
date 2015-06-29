@@ -315,11 +315,22 @@ public:
 	const T* ptr() const {
 		return data.data();
 	}
+
+	template<class Arc>
+	void serialize(Arc& arc, const unsigned) {
+		arc & data;
+	}
+
 };
+
+#include "space_vector.hpp"
 
 template<int N, class T>
 taylor_consts taylor<N, T>::tc;
 
-using multipole = taylor<4,real>;
-using expansion = taylor<4,real>;
+typedef taylor<4, real> multipole;
+typedef taylor<4, real> expansion;
+typedef std::pair<std::vector<multipole>, std::vector<space_vector>> multipole_pass_type;
+typedef std::pair<std::vector<expansion>, std::vector<expansion>> expansion_pass_type;
+
 #endif /* TAYLOR_HPP_ */

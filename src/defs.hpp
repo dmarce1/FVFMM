@@ -21,7 +21,7 @@ typedef char byte;
 #include <hpx/hpx.hpp>
 #include <hpx/runtime/components/migrate_component.hpp>
 
-const integer MAX_LEVEL = 2;
+const integer MAX_LEVEL = 0;
 enum boundary_type {OUTFLOW, REFLECT};
 
 const integer NDIM = 3;
@@ -38,6 +38,8 @@ const integer DNX = HNX * HNX;
 const integer DNY = HNX;
 const integer DNZ = 1;
 const integer DN[NDIM] = { HNX * HNX, HNX, 1 };
+
+
 
 const integer rho_i = 0;
 const integer egas_i = 1;

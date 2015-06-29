@@ -25,6 +25,7 @@ public:
 	node_location get_child(integer c) const;
 	node_location get_parent() const;
 	node_location get_sibling(integer face) const;
+	integer get_child_index() const;
 	bool operator==(const node_location& other) const;
 	bool operator!=(const node_location& other) const;
 	bool operator<(const node_location& other) const;

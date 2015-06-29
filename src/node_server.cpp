@@ -14,8 +14,6 @@ HPX_PLAIN_ACTION(node_server::get_local_timestep, get_local_timestep_action);
 HPX_PLAIN_ACTION(node_server::set_global_timestep, set_global_timestep_action);
 HPX_PLAIN_ACTION(node_server::output, output_action);
 
-HPX_REGISTER_COMPONENT_MODULE();
-
 integer node_server::local_node_count = 0;
 hpx::lcos::local::spinlock node_server::timestep_lock;
 integer node_server::timestep_node_count = 0;
@@ -26,71 +24,43 @@ std::atomic<integer> node_server::static_initializing(0);
 std::list<const node_server*> node_server::local_node_list;
 hpx::lcos::local::spinlock node_server::local_node_list_lock;
 
-void node_server::collect_boundaries(integer rk) {
-	std::vector<hpx::future<void>> send_futs(NFACE);
-	std::array<bool, NFACE> is_physical;
-	for (integer face = 0; face != NFACE; ++face) {
-		send_futs[face] = hpx::make_ready_future();
-	}
-	for (integer dim = 0; dim != NDIM; ++dim) {
-		for (integer face = 2 * dim; face != 2 * dim + 2; ++face) {
-			is_physical[face] = my_location.is_physical_boundary(face);
-			if (!is_physical[face]) {
-				const auto bdata = get_boundary(face);
-				send_futs[face] = siblings[face].send_boundary(bdata, rk, face ^ 1);
-			}
-		}
-		for (integer face = 2 * dim; face != 2 * dim + 2; ++face) {
-			if (!is_physical[face]) {
-				const std::vector<real> bdata = sibling_channels[rk][face]->get();
-				set_boundary(bdata, face);
-			} else {
-				grid_ptr->set_physical_boundaries(face);
-			}
-		}
-	}
-	hpx::wait_all(send_futs.begin(), send_futs.end());
-}
-
 real node_server::step() {
 	real dt = ZERO;
 
+	std::vector<hpx::future<real>> child_futs(NCHILD);
 	if (is_refined) {
-
-		std::vector<hpx::future<real>> child_futs;
-		child_futs.resize(NCHILD);
 		for (integer ci = 0; ci != NCHILD; ++ci) {
 			child_futs[ci] = children[ci].step();
 		}
-		reduce_this_timestep(std::numeric_limits<real>::max());
-		hpx::wait_all(child_futs.begin(), child_futs.end());
-		dt = global_timestep_channel->get();
-
-	} else {
-
-		real a;
-		const real dx = TWO / real(INX << my_location.level());
-		real cfl0 = cfl;
-		grid_ptr->store();
-
-		for (integer rk = 0; rk < NRK; ++rk) {
-			grid_ptr->reconstruct();
-			a = grid_ptr->compute_fluxes();
-			if (rk == 0) {
-				dt = cfl0 * dx / a;
-				reduce_this_timestep(dt);
-			}
-			grid_ptr->compute_sources();
-			grid_ptr->compute_dudt();
-			if (rk == 0) {
-				dt = global_timestep_channel->get();
-			}
-			grid_ptr->next_u(0, dt);
-			collect_boundaries(rk);
-		}
 	}
+	compute_fmm(RHO);
 
-	++step_num;
+	/*	real a;
+	 const real dx = TWO / real(INX << my_location.level());
+	 real cfl0 = cfl;
+	 grid_ptr->store();
+
+	 for (integer rk = 0; rk < NRK; ++rk) {
+	 grid_ptr->reconstruct();
+	 a = grid_ptr->compute_fluxes();
+	 if (rk == 0) {
+	 dt = cfl0 * dx / a;
+	 reduce_this_timestep(dt);
+	 }
+	 grid_ptr->compute_sources();
+	 grid_ptr->compute_dudt();
+	 if (rk == 0) {
+	 dt = global_timestep_channel->get();
+	 }
+	 grid_ptr->next_u(0, dt);
+	 collect_hydro_boundaries(rk);
+	 }
+
+	 if (is_refined) {
+	 hpx::wait_all(child_futs.begin(), child_futs.end());
+	 }
+
+	 ++step_num;*/
 	return dt;
 }
 
@@ -157,21 +127,26 @@ void node_server::initialize(real t) {
 	}
 	is_refined = false;
 	siblings.resize(NFACE);
-	for (integer rk = 0; rk != NRK; ++rk) {
-		for (integer face = 0; face != NFACE; ++face) {
-			sibling_channels[rk][face] = std::make_shared<channel<std::vector<real>>>();
+	for (integer face = 0; face != NFACE; ++face) {
+		for (integer rk = 0; rk != NRK; ++rk) {
+			sibling_hydro_channels[rk][face] = std::make_shared<channel<std::vector<real>>>();
 		}
+		sibling_gravity_channels[face] = std::make_shared<channel<std::vector<real>>>();
 	}
+	for (integer ci = 0; ci != NCHILD; ++ci) {
+		child_gravity_channels[ci] = std::make_shared<channel<multipole_pass_type>>();
+	}
+	parent_gravity_channel = std::make_shared<channel<expansion_pass_type>>();
 	current_time = t;
-	const real dx = TWO / real(INX << my_location.level());
-	std::array<real, NDIM> xmin;
+	dx = TWO / real(INX << my_location.level());
 	for (integer d = 0; d != NDIM; ++d) {
 		xmin[d] = my_location.x_location(d);
 	}
+	const integer flags = ((my_location.level() == 0) ? GRID_IS_ROOT : 0) | GRID_IS_LEAF;
 	if (current_time == ZERO) {
-		grid_ptr = std::make_shared < grid > (problem, dx, xmin);
+		grid_ptr = std::make_shared < grid > (problem, dx, xmin, flags);
 	} else {
-		grid_ptr = std::make_shared < grid > (dx, xmin);
+		grid_ptr = std::make_shared < grid > (dx, xmin, flags);
 	}
 }
 
@@ -213,8 +188,11 @@ integer node_server::regrid_gather() {
 			std::vector<hpx::future<void>> futs(NCHILD);
 			for (integer ci = 0; ci != NCHILD; ++ci) {
 				futs[ci] = children[ci].unregister(my_location.get_child(ci));
+				children[ci] = hpx::invalid_id;
 			}
 			is_refined = false;
+			const integer flags = ((my_location.level() == 0) ? GRID_IS_ROOT : 0) | GRID_IS_LEAF;
+			grid_ptr = std::make_shared < grid > (dx, xmin, flags);
 			hpx::wait_all(futs.begin(), futs.end());
 		}
 
@@ -239,6 +217,9 @@ integer node_server::regrid_gather() {
 				vfuts[ci] = children[ci].register_(clocs[ci]);
 			}
 			is_refined = true;
+			const integer flags = (my_location.level() == 0) ? GRID_IS_ROOT : 0;
+			grid_ptr = std::make_shared < grid > (dx, xmin, flags);
+
 			hpx::wait_all(vfuts.begin(), vfuts.end());
 		}
 	}
@@ -278,121 +259,6 @@ void node_server::regrid_scatter(integer a, integer total) {
 	}
 }
 
-integer node_server::get_boundary_size(std::vector<std::array<integer, NDIM>>& lb,
-		std::vector<std::array<integer, NDIM>>& ub, integer face, integer side) const {
-	const integer lcnt = grid_ptr->level_count();
-	integer hsize, msize, size, offset;
-	lb.resize(lcnt);
-	ub.resize(lcnt);
-	size = 0;
-	offset = (side == OUTER) ? HBW : 0;
-	for (integer lev = 0; lev < lcnt; ++lev) {
-		if (lev == 0) {
-			msize = 1;
-			hsize = NF;
-		} else {
-			msize = 20;
-		}
-		for (integer d = 0; d != NDIM; ++d) {
-			const integer nx = (INX >> lev) + 2 * HBW;
-			if (d < face / 2) {
-				lb[lev][d] = 0;
-				ub[lev][d] = nx;
-			} else if (d > face / 2) {
-				lb[lev][d] = HBW;
-				ub[lev][d] = nx - HBW;
-			} else if (face % 2 == 0) {
-				lb[lev][d] = HBW - offset;
-				ub[lev][d] = 2 * HBW - offset;
-			} else {
-				lb[lev][d] = nx - 2 * HBW + offset;
-				ub[lev][d] = nx - HBW + offset;
-			}
-			const integer width = ub[lev][d] - lb[lev][d];
-			if (lev == 0) {
-				hsize *= width;
-			}
-			msize *= width;
-		}
-		if (lev == 0) {
-			size += hsize;
-		}
-		size += msize;
-	}
-	return size;
-}
-
-std::vector<real> node_server::get_boundary(integer face) {
-
-	const integer lcnt = grid_ptr->level_count();
-	std::vector<std::array<integer, NDIM>> lb, ub;
-	std::vector<real> data;
-	const integer size = get_boundary_size(lb, ub, face, INNER);
-	data.resize(size);
-	integer iter = 0;
-
-	for (integer field = 0; field != NF; ++field) {
-		for (integer i = lb[0][XDIM]; i < ub[0][XDIM]; ++i) {
-			for (integer j = lb[0][YDIM]; j < ub[0][YDIM]; ++j) {
-				for (integer k = lb[0][ZDIM]; k < ub[0][ZDIM]; ++k) {
-					data[iter] = grid_ptr->hydro_value(field, i, j, k);
-					++iter;
-				}
-			}
-		}
-	}
-
-	for (integer lev = 0; lev < lcnt; ++lev) {
-		for (integer i = lb[lev][XDIM]; i < ub[lev][XDIM]; ++i) {
-			for (integer j = lb[lev][YDIM]; j < ub[lev][YDIM]; ++j) {
-				for (integer k = lb[lev][ZDIM]; k < ub[lev][ZDIM]; ++k) {
-					const auto& m = grid_ptr->multipole_value(lev, i, j, k);
-					const integer top = lev == 0 ? 1 : 20;
-					for (integer l = 0; l < top; ++l) {
-						data[iter] = m.ptr()[l];
-						++iter;
-					}
-				}
-			}
-		}
-	}
-
-	return data;
-}
-
-void node_server::set_boundary(const std::vector<real>& data, integer face) {
-	const integer lcnt = grid_ptr->level_count();
-	std::vector<std::array<integer, NDIM>> lb, ub;
-	get_boundary_size(lb, ub, face, OUTER);
-	integer iter = 0;
-
-	for (integer field = 0; field != NF; ++field) {
-		for (integer i = lb[0][XDIM]; i < ub[0][XDIM]; ++i) {
-			for (integer j = lb[0][YDIM]; j < ub[0][YDIM]; ++j) {
-				for (integer k = lb[0][ZDIM]; k < ub[0][ZDIM]; ++k) {
-					grid_ptr->hydro_value(field, i, j, k) = data[iter];
-					++iter;
-				}
-			}
-		}
-	}
-
-	for (integer lev = 0; lev < lcnt; ++lev) {
-		for (integer i = lb[lev][XDIM]; i < ub[lev][XDIM]; ++i) {
-			for (integer j = lb[lev][YDIM]; j < ub[lev][YDIM]; ++j) {
-				for (integer k = lb[lev][ZDIM]; k < ub[lev][ZDIM]; ++k) {
-					auto& m = grid_ptr->multipole_value(lev, i, j, k);
-					const integer top = lev == 0 ? 1 : 20;
-					for (integer l = 0; l < top; ++l) {
-						m.ptr()[l] = data[iter];
-						++iter;
-					}
-				}
-			}
-		}
-	}
-}
-
 void node_server::output(const std::string& filename) {
 	const auto localities = hpx::find_all_localities();
 	std::vector<hpx::future<void>> futs(localities.size());
@@ -417,6 +283,90 @@ void node_server::output(const std::string& filename) {
 	hpx::wait_all(futs.begin(), futs.end());
 }
 
-void node_server::recv_boundary(const std::vector<real>& bdata, integer rk, integer face) {
-	sibling_channels[rk][face]->set_value(bdata);
+void node_server::compute_fmm(gsolve_type type) {
+	multipole_pass_type m_in, m_out;
+	expansion_pass_type l_out;
+	m_out.first.resize(INX * INX * INX);
+	m_out.second.resize(INX * INX * INX);
+	if (is_refined) {
+		for (integer ci = 0; ci != NCHILD; ++ci) {
+			const integer x0 = ((ci >> 0) & 1) * INX / 2;
+			const integer y0 = ((ci >> 0) & 1) * INX / 2;
+			const integer z0 = ((ci >> 0) & 1) * INX / 2;
+			m_in = child_gravity_channels[ci]->get();
+			for (integer i = 0; i != INX / 2; ++i) {
+				for (integer j = 0; j != INX / 2; ++j) {
+					for (integer k = 0; k != INX / 2; ++k) {
+						const integer ii = i * INX * INX / 4 + j * INX / 2 + k;
+						const integer io = (i + x0) * INX * INX + (j + y0) * INX + k + z0;
+						m_out.first[io] = m_in.first[ii];
+						m_out.second[io] = m_in.second[ii];
+					}
+				}
+			}
+		}
+		m_out = grid_ptr->compute_multipoles(type, &m_out);
+	} else {
+		m_out = grid_ptr->compute_multipoles(type);
+	}
+	hpx::future<void> parent_fut;
+	std::vector<hpx::future<void>> child_futs(NCHILD);
+	if (my_location.level() != 0) {
+		parent.send_gravity_multipoles(std::move(m_out), my_location.get_child_index());
+	} else {
+		parent_fut = hpx::make_ready_future();
+	}
+	grid_ptr->compute_interactions(type);
+	std::vector<hpx::future<void>> sib_futs(NFACE);
+	for (integer si = 0; si != NFACE; ++si) {
+		if (!my_location.is_physical_boundary(si)) {
+			sib_futs[si] = siblings[si].send_gravity_boundary(get_gravity_boundary(si), si ^ 1);
+		} else {
+			sib_futs[si] = hpx::make_ready_future();
+		}
+	}
+	for (integer si = 0; si != NFACE; ++si) {
+		if (!my_location.is_physical_boundary(si)) {
+			const std::vector<real> tmp = sibling_gravity_channels[si]->get();
+			set_gravity_boundary(std::move(tmp), si);
+		}
+	}
+
+	expansion_pass_type l_in;
+	if (my_location.level() != 0) {
+		l_in = parent_gravity_channel->get();
+	}
+	const expansion_pass_type ltmp = grid_ptr->compute_expansions(type, my_location.level() == 0 ? nullptr : &l_in);
+	if (is_refined) {
+		l_out.first.resize(INX * INX * INX / NCHILD);
+		if (type == RHO) {
+			l_out.second.resize(INX * INX * INX / NCHILD);
+		}
+		for (integer ci = 0; ci != NCHILD; ++ci) {
+			const integer x0 = ((ci >> 0) & 1) * INX / 2;
+			const integer y0 = ((ci >> 0) & 1) * INX / 2;
+			const integer z0 = ((ci >> 0) & 1) * INX / 2;
+			m_in = child_gravity_channels[ci]->get();
+			for (integer i = 0; i != INX / 2; ++i) {
+				for (integer j = 0; j != INX / 2; ++j) {
+					for (integer k = 0; k != INX / 2; ++k) {
+						const integer io = i * INX * INX / 4 + j * INX / 2 + k;
+						const integer ii = (i + x0) * INX * INX + (j + y0) * INX + k + z0;
+						l_out.first[io] = ltmp.first[ii];
+						l_out.second[io] = ltmp.second[ii];
+					}
+				}
+			}
+			child_futs[ci] = children[ci].send_gravity_expansions(std::move(l_out));
+		}
+	} else {
+		for (integer ci = 0; ci != NCHILD; ++ci) {
+			child_futs[ci] = hpx::make_ready_future();
+		}
+	}
+
+	hpx::wait_all(sib_futs.begin(), sib_futs.end());
+	hpx::wait_all(child_futs.begin(), child_futs.end());
+	parent_fut.get();
 }
+

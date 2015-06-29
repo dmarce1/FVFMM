@@ -16,7 +16,6 @@
 #include <list>
 #include <set>
 
-
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/serialization/vector.hpp>
@@ -33,6 +32,9 @@ struct npair {
 
 typedef std::pair<integer, integer> dpair;
 
+const integer GRID_IS_ROOT = 0x1;
+const integer GRID_IS_LEAF = 0x2;
+
 class grid {
 public:
 	typedef std::array<real, NDIM> xpoint;
@@ -43,10 +45,12 @@ public:
 		bool operator<(const node_point& other) const;
 	};
 private:
-	static constexpr integer thread_cnt = 8;
-
+	const bool is_root;
+	const bool is_leaf;
 	std::array<std::vector<real>, NF> U;
 	std::vector<std::vector<multipole> > M;
+	std::vector<std::vector<expansion> > L;
+	std::vector<std::vector<expansion> > L_c;
 	real dx, t;
 	std::array<real, NDIM> xmin;
 	integer step_num;
@@ -67,12 +71,10 @@ private:
 	std::array<std::vector<real>, NGF> G0;
 	std::vector<real> dphi_dt;
 	std::vector<std::vector<space_vector> > com;
-	std::vector<std::vector<expansion> > L;
-	std::vector<std::vector<expansion> > L_c;
 	std::vector<npair> ilist_n;
 	std::vector<dpair> ilist_d;
-	std::array<std::vector<dpair>,NFACE> ilist_d_bnd;
-	std::array<std::vector<npair>,NFACE> ilist_n_bnd;
+	std::array<std::vector<dpair>, NFACE> ilist_d_bnd;
+	std::array<std::vector<npair>, NFACE> ilist_n_bnd;
 	static bool float_eq(real a, real b);
 	static bool xpoint_eq(const xpoint& a, const xpoint& b);
 public:
@@ -80,7 +82,7 @@ public:
 	struct output_list_type {
 		std::set<node_point> nodes;
 		std::list<integer> zones;
-		std::array<std::vector<real>,NF+NGF> data;
+		std::array<std::vector<real>, NF + NGF> data;
 	};
 	static void merge_output_lists(output_list_type& l1, const output_list_type& l2);
 
@@ -95,18 +97,19 @@ public:
 	void egas_to_etot();
 	void etot_to_egas();
 	void solve_gravity(gsolve_type = RHO);
-	void compute_multipoles(gsolve_type);
+	multipole_pass_type compute_multipoles(gsolve_type, const multipole_pass_type* = nullptr);
 	void compute_interactions(gsolve_type);
 	void compute_boundary_interactions(gsolve_type, integer face);
-	void compute_expansions(gsolve_type);
+
+	expansion_pass_type compute_expansions(gsolve_type, const expansion_pass_type* = nullptr);
 	real get_time() const;
 	integer get_step() const;
 	void save(const char* filename) const;
 	void load(const char* filename);
 	void diagnostics();
-	grid(const std::function<std::vector<real>(real, real, real)>&, real dx = TWO / real(INX),
-			std::array<real, NDIM> xmin = { -ONE, -ONE, -ONE });
-	grid(real dx = TWO / real(INX), std::array<real, NDIM> xmin = { -ONE, -ONE, -ONE });
+	grid(const std::function<std::vector<real>(real, real, real)>&, real dx, std::array<real, NDIM> xmin,
+			integer flags);
+	grid(real dx, std::array<real, NDIM>, integer flags);
 	void allocate();
 	void reconstruct();
 	void store();

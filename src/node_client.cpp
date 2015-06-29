@@ -20,7 +20,6 @@ hpx::future<integer> node_client::regrid_gather() const {
 	return hpx::async<typename node_server::regrid_gather_action>(get_gid());
 }
 
-
 hpx::future<void> node_client::regrid_scatter(integer a, integer b) const {
 	return hpx::async<typename node_server::regrid_scatter_action>(get_gid(), a, b);
 }
@@ -33,15 +32,25 @@ hpx::future<void> node_client::unregister(const node_location& nloc) const {
 	return hpx::unregister_id_with_basename("node_location", nloc.unique_id());
 }
 
-hpx::future<void> node_client::send_boundary(const std::vector<real> data, integer rk, integer face) const {
-	return hpx::async<typename node_server::send_boundary_action>(get_gid(), data, rk, face);
+hpx::future<void> node_client::send_hydro_boundary(const std::vector<real> data, integer rk, integer face) const {
+	return hpx::async<typename node_server::send_hydro_boundary_action>(get_gid(), data, rk, face);
 }
 
+hpx::future<void> node_client::send_gravity_boundary(const std::vector<real> data, integer face) const {
+	return hpx::async<typename node_server::send_gravity_boundary_action>(get_gid(), data, face);
+}
+
+hpx::future<void> node_client::send_gravity_multipoles(const multipole_pass_type& data, integer ci) const {
+	return hpx::async<typename node_server::send_gravity_multipoles_action>(get_gid(), data, ci);
+}
+
+hpx::future<void> node_client::send_gravity_expansions(const expansion_pass_type& data) const {
+	return hpx::async<typename node_server::send_gravity_expansions_action>(get_gid(), data);
+}
 
 hpx::future<real> node_client::step() const {
 	return hpx::async<typename node_server::step_action>(get_gid());
 }
-
 
 hpx::future<void> node_client::regrid() const {
 	return hpx::async<typename node_server::regrid_action>(get_gid());
