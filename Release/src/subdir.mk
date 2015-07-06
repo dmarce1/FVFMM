@@ -4,7 +4,6 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 CPP_SRCS += \
-../src/channel.cpp \
 ../src/grid.cpp \
 ../src/grid_fmm.cpp \
 ../src/grid_output.cpp \
@@ -13,12 +12,12 @@ CPP_SRCS += \
 ../src/node_client.cpp \
 ../src/node_location.cpp \
 ../src/node_server.cpp \
+../src/node_server_decomp.cpp \
 ../src/problem.cpp \
 ../src/roe.cpp \
 ../src/taylor.cpp 
 
 OBJS += \
-./src/channel.o \
 ./src/grid.o \
 ./src/grid_fmm.o \
 ./src/grid_output.o \
@@ -27,12 +26,12 @@ OBJS += \
 ./src/node_client.o \
 ./src/node_location.o \
 ./src/node_server.o \
+./src/node_server_decomp.o \
 ./src/problem.o \
 ./src/roe.o \
 ./src/taylor.o 
 
 CPP_DEPS += \
-./src/channel.d \
 ./src/grid.d \
 ./src/grid_fmm.d \
 ./src/grid_output.d \
@@ -41,6 +40,7 @@ CPP_DEPS += \
 ./src/node_client.d \
 ./src/node_location.d \
 ./src/node_server.d \
+./src/node_server_decomp.d \
 ./src/problem.d \
 ./src/roe.d \
 ./src/taylor.d 

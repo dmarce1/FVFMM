@@ -31,9 +31,11 @@ private:
 	std::array<integer, NVERTEX> child_descendant_count;
 	integer locality_id;
 	std::array<std::array<std::shared_ptr<channel<std::vector<real>>> ,NFACE>,NRK> sibling_hydro_channels;
+
 	std::shared_ptr<channel<expansion_pass_type>> parent_gravity_channel;
 	std::array<std::shared_ptr<channel<std::vector<real>>> ,NFACE> sibling_gravity_channels;
 	std::array<std::shared_ptr<channel<multipole_pass_type>>, NCHILD> child_gravity_channels;
+
 	std::list<const node_server*>::iterator my_list_iterator;
 	std::array<real, NDIM> xmin;
 	real dx;
@@ -79,13 +81,11 @@ public:
 	node_server();
 	~node_server();
 	node_server(const node_location&, const node_client& parent_id, real);
-	integer get_hydro_boundary_size(std::array<integer, NDIM>&, std::array<integer, NDIM>&, integer,
+	integer get_boundary_size(std::array<integer, NDIM>&, std::array<integer, NDIM>&, integer,
 			integer) const;
 	void set_hydro_boundary(const std::vector<real>&, integer face);
 	std::vector<real> get_hydro_boundary(integer face);
 
-	integer get_gravity_boundary_size(std::vector<std::array<integer, NDIM>>&, std::vector<std::array<integer, NDIM>>&,integer,
-			integer) const;
 	void set_gravity_boundary(const std::vector<real>&, integer face);
 	std::vector<real> get_gravity_boundary(integer face);
 

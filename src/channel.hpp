@@ -52,22 +52,5 @@ public:
 
 };
 
-template<>
-class channel<void> {
-private:
-	bool set;
-	hpx::shared_future<void> future;
-	hpx::promise<void> promise;
-public:
-	channel();
-	~channel() = default;
-	channel(channel&&) = default;
-	channel(const channel&) = delete;
-	channel& operator=(channel&&) = default;
-	channel& operator=(const channel&) = delete;
-
-	void set_value();
-	void get();
-};
 
 #endif /* CHANNEL_HPP_ */

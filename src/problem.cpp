@@ -22,8 +22,8 @@ std::vector<real> sod_shock_tube(real x, real y, real z) {
 	return u;
 }
 
-const real x0 = 0.075;
-const real y0_ = 0.15;
+const real x0 = 0.0;
+const real y0_ = 0.0;
 const real z0 = 0.0;
 const real rmax = 3.7;
 const real dr = rmax / 128.0;

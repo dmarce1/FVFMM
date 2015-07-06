@@ -21,7 +21,7 @@ typedef char byte;
 #include <hpx/hpx.hpp>
 #include <hpx/runtime/components/migrate_component.hpp>
 
-const integer MAX_LEVEL = 0;
+const integer MAX_LEVEL = 1;
 enum boundary_type {OUTFLOW, REFLECT};
 
 const integer NDIM = 3;

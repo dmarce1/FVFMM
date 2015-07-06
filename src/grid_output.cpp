@@ -101,6 +101,7 @@ grid::output_list_type grid::get_output_list() const {
 				}
 				for (integer field = 0; field != NF; ++field) {
 					data[field][di] = U[field][iii];
+
 				}
 				for (integer field = 0; field != NGF; ++field) {
 					data[field + NF][di] = G[field][iii];

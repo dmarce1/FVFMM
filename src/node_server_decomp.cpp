@@ -33,7 +33,7 @@ void node_server::collect_hydro_boundaries(integer rk) {
 	hpx::wait_all(send_futs.begin(), send_futs.end());
 }
 
-integer node_server::get_hydro_boundary_size(std::array<integer, NDIM>& lb, std::array<integer, NDIM>& ub, integer face,
+integer node_server::get_boundary_size(std::array<integer, NDIM>& lb, std::array<integer, NDIM>& ub, integer face,
 		integer side) const {
 	integer hsize, size, offset;
 	size = 0;
@@ -61,48 +61,11 @@ integer node_server::get_hydro_boundary_size(std::array<integer, NDIM>& lb, std:
 	return size;
 }
 
-integer node_server::get_gravity_boundary_size(std::vector<std::array<integer, NDIM>>& lb,
-		std::vector<std::array<integer, NDIM>>& ub, integer face, integer side) const {
-	const integer lcnt = grid_ptr->level_count();
-	integer msize, size, offset;
-	lb.resize(lcnt);
-	ub.resize(lcnt);
-	size = 0;
-	offset = (side == OUTER) ? HBW : 0;
-	for (integer lev = 0; lev < lcnt; ++lev) {
-		if (lev == 0) {
-			msize = 1;
-		} else {
-			msize = 20;
-		}
-		for (integer d = 0; d != NDIM; ++d) {
-			const integer nx = (INX >> lev) + 2 * HBW;
-			if (d < face / 2) {
-				lb[lev][d] = 0;
-				ub[lev][d] = nx;
-			} else if (d > face / 2) {
-				lb[lev][d] = HBW;
-				ub[lev][d] = nx - HBW;
-			} else if (face % 2 == 0) {
-				lb[lev][d] = HBW - offset;
-				ub[lev][d] = 2 * HBW - offset;
-			} else {
-				lb[lev][d] = nx - 2 * HBW + offset;
-				ub[lev][d] = nx - HBW + offset;
-			}
-			const integer width = ub[lev][d] - lb[lev][d];
-			msize *= width;
-		}
-		size += msize;
-	}
-	return size;
-}
-
 std::vector<real> node_server::get_hydro_boundary(integer face) {
 
 	std::array<integer, NDIM> lb, ub;
 	std::vector<real> data;
-	const integer size = get_hydro_boundary_size(lb, ub, face, INNER);
+	const integer size = get_boundary_size(lb, ub, face, INNER);
 	data.resize(size);
 	integer iter = 0;
 
@@ -122,23 +85,20 @@ std::vector<real> node_server::get_hydro_boundary(integer face) {
 
 std::vector<real> node_server::get_gravity_boundary(integer face) {
 
-	const integer lcnt = grid_ptr->level_count();
-	std::vector<std::array<integer, NDIM>> lb, ub;
+	std::array<integer, NDIM> lb, ub;
 	std::vector<real> data;
-	const integer size = get_gravity_boundary_size(lb, ub, face, INNER);
+	const integer size = get_boundary_size(lb, ub, face, INNER);
 	data.resize(size);
 	integer iter = 0;
 
-	for (integer lev = 0; lev < lcnt; ++lev) {
-		for (integer i = lb[lev][XDIM]; i < ub[lev][XDIM]; ++i) {
-			for (integer j = lb[lev][YDIM]; j < ub[lev][YDIM]; ++j) {
-				for (integer k = lb[lev][ZDIM]; k < ub[lev][ZDIM]; ++k) {
-					const auto& m = grid_ptr->multipole_value(lev, i, j, k);
-					const integer top = lev == 0 ? 1 : 20;
-					for (integer l = 0; l < top; ++l) {
-						data[iter] = m.ptr()[l];
-						++iter;
-					}
+	for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
+		for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
+			for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
+				const auto& m = grid_ptr->multipole_value(0, i, j, k);
+				const integer top = is_refined ? 20 : 1;
+				for (integer l = 0; l < top; ++l) {
+					data[iter] = m.ptr()[l];
+					++iter;
 				}
 			}
 		}
@@ -149,7 +109,7 @@ std::vector<real> node_server::get_gravity_boundary(integer face) {
 
 void node_server::set_hydro_boundary(const std::vector<real>& data, integer face) {
 	std::array<integer, NDIM> lb, ub;
-	get_hydro_boundary_size(lb, ub, face, OUTER);
+	get_boundary_size(lb, ub, face, OUTER);
 	integer iter = 0;
 
 	for (integer field = 0; field != NF; ++field) {
@@ -165,21 +125,18 @@ void node_server::set_hydro_boundary(const std::vector<real>& data, integer face
 }
 
 void node_server::set_gravity_boundary(const std::vector<real>& data, integer face) {
-	const integer lcnt = grid_ptr->level_count();
-	std::vector<std::array<integer, NDIM>> lb, ub;
-	get_gravity_boundary_size(lb, ub, face, OUTER);
+	std::array<integer, NDIM> lb, ub;
+	get_boundary_size(lb, ub, face, OUTER);
 	integer iter = 0;
 
-	for (integer lev = 0; lev < lcnt; ++lev) {
-		for (integer i = lb[lev][XDIM]; i < ub[lev][XDIM]; ++i) {
-			for (integer j = lb[lev][YDIM]; j < ub[lev][YDIM]; ++j) {
-				for (integer k = lb[lev][ZDIM]; k < ub[lev][ZDIM]; ++k) {
-					auto& m = grid_ptr->multipole_value(lev, i, j, k);
-					const integer top = lev == 0 ? 1 : 20;
-					for (integer l = 0; l < top; ++l) {
-						m.ptr()[l] = data[iter];
-						++iter;
-					}
+	for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
+		for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
+			for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
+				auto& m = grid_ptr->multipole_value(0, i, j, k);
+				const integer top = is_refined ? 20 : 1;
+				for (integer l = 0; l < top; ++l) {
+					m.ptr()[l] = data[iter];
+					++iter;
 				}
 			}
 		}

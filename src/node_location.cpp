@@ -19,7 +19,7 @@
 #include "node_client.hpp"
 
 integer node_location::get_child_index() const {
-	return ((xloc[XDIM] & 1) + (xloc[YDIM] & 1) * 2 + (xloc[YDIM] & 1) * 4);
+	return ((xloc[XDIM] & 1) + (2 * (xloc[YDIM] & 1)) + (4 * (xloc[ZDIM] & 1)));
 }
 
 real node_location::x_location(integer d) const {
