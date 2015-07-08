@@ -21,10 +21,6 @@
 #include <boost/serialization/vector.hpp>
 #include <list>
 
-enum gsolve_type {
-	RHO, DRHODT
-};
-
 struct npair {
 	integer lev;
 	std::pair<integer, integer> loc;
@@ -90,6 +86,8 @@ public:
 	real hydro_value(integer, integer, integer, integer) const;
 	multipole& multipole_value(integer, integer, integer, integer);
 	const multipole& multipole_value(integer, integer, integer, integer) const;
+	const space_vector& center_of_mass_value(integer, integer, integer) const;
+	space_vector& center_of_mass_value(integer, integer, integer);
 	bool refine_me(integer lev) const;
 	integer level_count() const;
 	void compute_ilist();

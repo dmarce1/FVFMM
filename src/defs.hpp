@@ -17,6 +17,11 @@ typedef char byte;
 
 #define USE_SIMD
 
+enum gsolve_type {
+	RHO, DRHODT
+};
+
+
 
 #include <hpx/hpx.hpp>
 #include <hpx/runtime/components/migrate_component.hpp>

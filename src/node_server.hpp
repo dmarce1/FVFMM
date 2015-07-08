@@ -113,7 +113,13 @@ public:
 	void regrid();
 	HPX_DEFINE_COMPONENT_ACTION(node_server, regrid, regrid_action);
 
-	void compute_fmm(gsolve_type gs);
+	void compute_fmm(gsolve_type gs, bool energy_account = true);
+
+	void solve_gravity(bool ene=true);
+	HPX_DEFINE_COMPONENT_ACTION(node_server, solve_gravity, solve_gravity_action);
+
+	void start_run();
+	HPX_DEFINE_COMPONENT_ACTION(node_server, start_run, start_run_action);
 };
 
 #endif /* NODE_SERVER_HPP_ */

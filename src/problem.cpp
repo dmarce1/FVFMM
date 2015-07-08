@@ -22,12 +22,26 @@ std::vector<real> sod_shock_tube(real x, real y, real z) {
 	return u;
 }
 
+std::vector<real> solid_sphere(real x, real y, real z) {
+	const real r0 = 0.5;
+	std::vector<real> u(NF, real(0));
+//	x -= 0.5;
+//	y -= 0.5;
+//	z -= 0.5;
+	if (x*x + y*y + z*z < r0*r0) {
+		u[rho_i] = 1.0;
+	} else {
+		u[rho_i] = 1.0e-10;
+	}
+	return u;
+}
+
 const real x0 = 0.0;
 const real y0_ = 0.0;
 const real z0 = 0.0;
 const real rmax = 3.7;
 const real dr = rmax / 128.0;
-const real alpha = real(1) / real(4);
+const real alpha = real(1) / real(5);
 
 std::vector<real> star(real x, real y, real z) {
 	x -= x0;

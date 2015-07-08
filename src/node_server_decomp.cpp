@@ -38,7 +38,7 @@ integer node_server::get_boundary_size(std::array<integer, NDIM>& lb, std::array
 	integer hsize, size, offset;
 	size = 0;
 	offset = (side == OUTER) ? HBW : 0;
-	hsize = NF;
+	hsize = 1;
 	for (integer d = 0; d != NDIM; ++d) {
 		const integer nx = INX + 2 * HBW;
 		if (d < face / 2) {
@@ -65,7 +65,7 @@ std::vector<real> node_server::get_hydro_boundary(integer face) {
 
 	std::array<integer, NDIM> lb, ub;
 	std::vector<real> data;
-	const integer size = get_boundary_size(lb, ub, face, INNER);
+	const integer size = NF * get_boundary_size(lb, ub, face, INNER);
 	data.resize(size);
 	integer iter = 0;
 
@@ -87,7 +87,12 @@ std::vector<real> node_server::get_gravity_boundary(integer face) {
 
 	std::array<integer, NDIM> lb, ub;
 	std::vector<real> data;
-	const integer size = get_boundary_size(lb, ub, face, INNER);
+	integer size = get_boundary_size(lb, ub, face, INNER);
+	if (is_refined) {
+		size *= 20 + 3;
+	} else {
+		size *= 1 + 3;
+	}
 	data.resize(size);
 	integer iter = 0;
 
@@ -95,9 +100,14 @@ std::vector<real> node_server::get_gravity_boundary(integer face) {
 		for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
 			for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
 				const auto& m = grid_ptr->multipole_value(0, i, j, k);
+				const auto& com = grid_ptr->center_of_mass_value(i, j, k);
 				const integer top = is_refined ? 20 : 1;
 				for (integer l = 0; l < top; ++l) {
 					data[iter] = m.ptr()[l];
+					++iter;
+				}
+				for (integer d = 0; d != NDIM; ++d) {
+					data[iter] = com[d];
 					++iter;
 				}
 			}
@@ -105,6 +115,30 @@ std::vector<real> node_server::get_gravity_boundary(integer face) {
 	}
 
 	return data;
+}
+
+void node_server::set_gravity_boundary(const std::vector<real>& data, integer face) {
+	std::array<integer, NDIM> lb, ub;
+	get_boundary_size(lb, ub, face, OUTER);
+	integer iter = 0;
+
+	for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
+		for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
+			for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
+				auto& m = grid_ptr->multipole_value(0, i, j, k);
+				auto& com = grid_ptr->center_of_mass_value(i, j, k);
+				const integer top = is_refined ? 20 : 1;
+				for (integer l = 0; l < top; ++l) {
+					m.ptr()[l] = data[iter];
+					++iter;
+				}
+				for (integer d = 0; d != NDIM; ++d) {
+					com[d] = data[iter];
+					++iter;
+				}
+			}
+		}
+	}
 }
 
 void node_server::set_hydro_boundary(const std::vector<real>& data, integer face) {
@@ -117,25 +151,6 @@ void node_server::set_hydro_boundary(const std::vector<real>& data, integer face
 			for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
 				for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
 					grid_ptr->hydro_value(field, i, j, k) = data[iter];
-					++iter;
-				}
-			}
-		}
-	}
-}
-
-void node_server::set_gravity_boundary(const std::vector<real>& data, integer face) {
-	std::array<integer, NDIM> lb, ub;
-	get_boundary_size(lb, ub, face, OUTER);
-	integer iter = 0;
-
-	for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
-		for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
-			for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
-				auto& m = grid_ptr->multipole_value(0, i, j, k);
-				const integer top = is_refined ? 20 : 1;
-				for (integer l = 0; l < top; ++l) {
-					m.ptr()[l] = data[iter];
 					++iter;
 				}
 			}

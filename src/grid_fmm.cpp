@@ -394,7 +394,7 @@ void grid::compute_ilist() {
 									const integer iii1 = i1 * nx * nx + j1 * nx + k1;
 									integer max_dist = std::max(std::abs(k0 - k1),
 											std::max(std::abs(i0 - i1), std::abs(j0 - j1)));
-									if (((max_dist > 1) && (lev != 0)) || ((max_dist > 0) && (lev == 0) && !is_leaf)) {
+									if ((max_dist > 1) && ((lev != 0) || !is_leaf)) {
 										np.lev = lev;
 										np.loc.first = iii0;
 										np.loc.second = iii1;
@@ -405,7 +405,7 @@ void grid::compute_ilist() {
 										} else if (face_num[lev][iii0] == -1) {
 											ilist_n0_bnd[face_num[lev][iii1]].push_back(np);
 										}
-									} else if ((lev == 0) && (max_dist > 0)) {
+									} else if ((lev == 0) && (max_dist > 0) && is_leaf) {
 										dp.first = iii0;
 										dp.second = iii1;
 										if (face_num[lev][iii1] == -1 && face_num[lev][iii0] == -1) {
@@ -522,7 +522,6 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 		} else {
 			for (integer iii = 0; iii != HN3; ++iii) {
 				dphi_dt[iii] = L[0][iii]();
-				printf("%e\n", dphi_dt[iii]);
 			}
 		}
 	}

@@ -29,7 +29,10 @@ public:
 	hpx::future<void> send_gravity_multipoles(const multipole_pass_type&, integer ci) const;
 	hpx::future<void> send_gravity_expansions(const expansion_pass_type&) const;
 	hpx::future<real> step() const;
+	hpx::future<void> start_run() const;
 	hpx::future<void> regrid() const;
+	hpx::future<void> solve_gravity(bool ene=true) const;
+
 
 };
 #endif /* NODE_CLIENT_HPP_ */

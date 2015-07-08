@@ -21,6 +21,17 @@ real& grid::hydro_value(integer f, integer i, integer j, integer k) {
 	return U[f][i * DNX + j * DNY + k * DNZ];
 }
 
+
+space_vector& grid::center_of_mass_value(integer i, integer j, integer k) {
+	return com[0][i * HNX * HNX + j * HNX + k];
+}
+
+
+const space_vector& grid::center_of_mass_value(integer i, integer j, integer k) const {
+	return com[0][i * HNX * HNX + j * HNX + k];
+}
+
+
 multipole& grid::multipole_value(integer lev, integer i, integer j, integer k) {
 	const integer bw = HBW;
 	const integer inx = INX >> lev;

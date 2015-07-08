@@ -16,6 +16,11 @@ node_client::node_client() :
 		base_type() {
 }
 
+hpx::future<void> node_client::solve_gravity( bool ene) const {
+	return hpx::async<typename node_server::solve_gravity_action>(get_gid(), ene);
+}
+
+
 hpx::future<integer> node_client::regrid_gather() const {
 	return hpx::async<typename node_server::regrid_gather_action>(get_gid());
 }
@@ -50,6 +55,10 @@ hpx::future<void> node_client::send_gravity_expansions(const expansion_pass_type
 
 hpx::future<real> node_client::step() const {
 	return hpx::async<typename node_server::step_action>(get_gid());
+}
+
+hpx::future<void> node_client::start_run() const {
+	return hpx::async<typename node_server::start_run_action>(get_gid());
 }
 
 hpx::future<void> node_client::regrid() const {
