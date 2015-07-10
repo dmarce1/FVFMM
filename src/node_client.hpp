@@ -19,7 +19,8 @@ private:
 	typedef hpx::components::client_base<node_client, node_server> base_type;
 public:
 	node_client();
-	node_client(const hpx::id_type& id);
+	node_client(hpx::future<hpx::id_type>&& id);
+	node_client& operator=(hpx::future<hpx::id_type>&& id);
 	hpx::future<void> regrid_scatter(integer, integer) const;
 	hpx::future<void> register_(const node_location&) const;
 	hpx::future<void> unregister(const node_location&) const;
@@ -32,6 +33,7 @@ public:
 	hpx::future<void> start_run() const;
 	hpx::future<void> regrid() const;
 	hpx::future<void> solve_gravity(bool ene=true) const;
+	hpx::future<hpx::id_type> copy_to_locality(const hpx::id_type& ) const;
 
 
 };

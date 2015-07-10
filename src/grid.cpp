@@ -137,13 +137,15 @@ void grid::allocate() {
 
 }
 
+grid::grid() {
+}
+
 grid::grid(const std::function<std::vector<real>(real, real, real)>& init_func, real _dx, std::array<real, NDIM> _xmin,
 		integer flags) :
 		is_root(flags & GRID_IS_ROOT), is_leaf(flags & GRID_IS_LEAF), U_out(NF, ZERO), U_out0(NF, ZERO), S_out(NDIM,
 				ZERO), S_out0(NDIM, ZERO), dphi_dt(HN3) {
 	dx = _dx;
 	xmin = _xmin;
-	printf("Creating grid at %e %e %e w dx = %e\n", xmin[0], xmin[1], xmin[2], dx);
 	allocate();
 	for (integer i = 0; i != HNX; ++i) {
 		for (integer j = 0; j != HNX; ++j) {

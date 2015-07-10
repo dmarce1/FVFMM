@@ -19,26 +19,40 @@ const integer OUTER = 1;
 
 class node_server: public hpx::components::simple_component_base<node_server> {
 private:
+	node_location my_location;
 	integer step_num;
 	real current_time;
 	std::shared_ptr<grid> grid_ptr;
-	node_location my_location;
+	bool is_refined;
+	std::array<integer, NVERTEX> child_descendant_count;
+	std::array<real, NDIM> xmin;
+	real dx;
 	node_client me;
 	node_client parent;
 	std::vector<node_client> siblings;
 	std::vector<node_client> children;
-	bool is_refined;
-	std::array<integer, NVERTEX> child_descendant_count;
-	integer locality_id;
-	std::array<std::array<std::shared_ptr<channel<std::vector<real>>> ,NFACE>,NRK> sibling_hydro_channels;
+public:
+	template<class Archive>
+	void serialize(Archive& arc, unsigned) {
+		arc & my_location;
+		arc & step_num;
+		arc & is_refined;
+		arc & current_time;
+		arc & xmin;
+		arc & dx;
+		arc & *grid_ptr;
+	}
 
+	node_server(node_location&&, integer, bool, real, std::array<real,NDIM>&&, real, grid&&);
+	void find_family();
+private:
+	std::array<std::array<std::shared_ptr<channel<std::vector<real>>> ,NFACE>,NRK> sibling_hydro_channels;
 	std::shared_ptr<channel<expansion_pass_type>> parent_gravity_channel;
 	std::array<std::shared_ptr<channel<std::vector<real>>> ,NFACE> sibling_gravity_channels;
 	std::array<std::shared_ptr<channel<multipole_pass_type>>, NCHILD> child_gravity_channels;
+	std::shared_ptr<channel<real>> global_timestep_channel;
 
 	std::list<const node_server*>::iterator my_list_iterator;
-	std::array<real, NDIM> xmin;
-	real dx;
 
 	static std::list<const node_server*> local_node_list;
 	static hpx::lcos::local::spinlock local_node_list_lock;
@@ -50,7 +64,6 @@ private:
 	static bool static_initialized;
 	static std::atomic<integer> static_initializing;
 	static std::shared_ptr<channel<real>> local_timestep_channel;
-	std::shared_ptr<channel<real>> global_timestep_channel;
 
 	static void reduce_this_timestep(double dt);
 
@@ -60,26 +73,14 @@ private:
 
 public:
 
-	static void output(const std::string&);
+	static grid::output_list_type output(const std::string&);
 	static real get_local_timestep();
 	static void set_global_timestep(real);
 
-	template<class Archive>
-	void serialize(Archive& arc, unsigned) {
-		arc & my_location;
-		arc & step_num;
-		arc & me;
-		arc & parent;
-		arc & siblings;
-		arc & children;
-		arc & is_refined;
-		arc & child_descendant_count;
-		arc & locality_id;
-		arc & *grid_ptr;
-	}
-
 	node_server();
 	~node_server();
+	node_server( const node_server& other);
+	node_server( node_server&& other);
 	node_server(const node_location&, const node_client& parent_id, real);
 	integer get_boundary_size(std::array<integer, NDIM>&, std::array<integer, NDIM>&, integer,
 			integer) const;
@@ -120,6 +121,13 @@ public:
 
 	void start_run();
 	HPX_DEFINE_COMPONENT_ACTION(node_server, start_run, start_run_action);
+
+	hpx::future<hpx::id_type> copy_to_locality(const hpx::id_type& );
+	HPX_DEFINE_COMPONENT_ACTION(node_server, copy_to_locality, copy_to_locality_action);
 };
+
+//HPX_REGISTER_ACTION_DECLARATION (node_server::start_run_action);
+//HPX_REGISTER_ACTION_DECLARATION (node_server::step_action);
+//HPX_REGISTER_ACTION_DECLARATION (node_server::solve_gravity_action);
 
 #endif /* NODE_SERVER_HPP_ */

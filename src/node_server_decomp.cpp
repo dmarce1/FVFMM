@@ -5,6 +5,11 @@
  *      Author: dmarce1
  */
 
+/*
+ *
+ * TODO: Sx, Sy, Sz boundaries!!!
+ */
+
 #include "node_server.hpp"
 
 void node_server::collect_hydro_boundaries(integer rk) {

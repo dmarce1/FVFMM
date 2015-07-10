@@ -26,6 +26,9 @@ public:
 	node_location get_parent() const;
 	node_location get_sibling(integer face) const;
 	integer get_child_index() const;
+	integer operator[](integer i) const {
+		return xloc[i];
+	}
 	bool operator==(const node_location& other) const;
 	bool operator!=(const node_location& other) const;
 	bool operator<(const node_location& other) const;
@@ -34,12 +37,13 @@ public:
 	bool operator <=(const node_location& other) const;
 	std::size_t unique_id() const;
 	hpx::future<void> register_client(const node_client& client) const;
+	hpx::future<hpx::id_type> get_id() const;
 	hpx::future<node_client> get_client() const;
 	bool is_physical_boundary(integer) const;
 	real x_location(integer d) const;
 	std::string to_str() const;
-	template< class Archive >
-	void serialize( Archive& arc, unsigned) {
+	template<class Archive>
+	void serialize(Archive& arc, unsigned) {
 		arc & lev;
 		arc & xloc;
 	}

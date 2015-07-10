@@ -19,6 +19,8 @@
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/serialization/vector.hpp>
+#include <boost/serialization/list.hpp>
+#include <boost/serialization/set.hpp>
 #include <list>
 
 struct npair {
@@ -37,12 +39,17 @@ public:
 	struct node_point {
 		xpoint pt;
 		integer index;
+		template<class Arc>
+		void serialize(Arc& arc, unsigned) {
+			arc & pt;
+			arc & index;
+		}
 		bool operator==(const node_point& other) const;
 		bool operator<(const node_point& other) const;
 	};
 private:
-	const bool is_root;
-	const bool is_leaf;
+	bool is_root;
+	bool is_leaf;
 	std::array<std::vector<real>, NF> U;
 	std::vector<std::vector<multipole> > M;
 	std::vector<std::vector<expansion> > L;
@@ -79,6 +86,12 @@ public:
 		std::set<node_point> nodes;
 		std::list<integer> zones;
 		std::array<std::vector<real>, NF + NGF> data;
+		template<class Arc>
+		void serialize(Arc& arc, unsigned int) {
+			arc & nodes;
+			arc & zones;
+			arc & data;
+		}
 	};
 	static void merge_output_lists(output_list_type& l1, const output_list_type& l2);
 
@@ -108,6 +121,7 @@ public:
 	grid(const std::function<std::vector<real>(real, real, real)>&, real dx, std::array<real, NDIM> xmin,
 			integer flags);
 	grid(real dx, std::array<real, NDIM>, integer flags);
+	grid();
 	void allocate();
 	void reconstruct();
 	void store();
@@ -121,16 +135,36 @@ public:
 	static void output(const output_list_type&, const char*);
 	output_list_type get_output_list() const;
 	template<class Archive>
-	void serialize(Archive& arc, const unsigned) {
-		arc & U;
-		arc & S;
-		arc & G;
-		arc & U_out;
-		arc & S_out;
-		arc & dx;
-		arc & t;
-		arc & step_num;
+	void load(Archive& arc, const unsigned) {
+		arc >> is_leaf;
+		arc >> is_root;
+		arc >> dx;
+		arc >> t;
+		arc >> step_num;
+		arc >> xmin;
+		allocate();
+		arc >> U;
+		arc >> S;
+		arc >> G;
+		arc >> U_out;
+		arc >> S_out;
 	}
+	template<class Archive>
+	void save(Archive& arc, const unsigned) const {
+		arc << is_leaf;
+		arc << is_root;
+		arc << dx;
+		arc << t;
+		arc << step_num;
+		arc << xmin;
+		arc << U;
+		arc << S;
+		arc << G;
+		arc << U_out;
+		arc << S_out;
+	}
+	BOOST_SERIALIZATION_SPLIT_MEMBER()
+	;
 };
 
 #endif /* GRID_HPP_ */

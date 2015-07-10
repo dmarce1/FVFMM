@@ -10,6 +10,7 @@ HPX_PLAIN_ACTION(node_server::output, output_action_type);
 
 void node_server::start_run() {
 
+
 	solve_gravity(false);
 
 	double output_dt = 0.1;
@@ -17,6 +18,7 @@ void node_server::start_run() {
 
 	real t = ZERO;
 	integer step_num = 0;
+
 	while (true) {
 
 		if (t / output_dt >= output_cnt) {
@@ -24,7 +26,7 @@ void node_server::start_run() {
 			if (asprintf(&fname, "X.%i.silo", int(output_cnt))) {
 			}
 			++output_cnt;
-	//		hpx::async < output_action_type > (hpx::find_here(), fname).get();
+			hpx::async < output_action_type > (hpx::find_here(), fname).get();
 			free(fname);
 			printf("--- output ---\n");
 		}
@@ -41,7 +43,8 @@ int hpx_main(int argc, char* argv[]) {
 	feenableexcept(FE_INVALID);
 	feenableexcept(FE_OVERFLOW);
 #endif
-	auto root_id = hpx::new_ < node_server > (hpx::find_here()).get();
+	 node_client root_id = node_client::create(hpx::find_here());
+//	auto root_id = hpx::new_ < node_server > (hpx::find_here()).get();
 	node_client root_client(root_id);
 	root_client.register_(node_location()).get();
 	for (integer l = 0; l < MAX_LEVEL; ++l) {

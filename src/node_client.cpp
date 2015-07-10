@@ -8,18 +8,26 @@
 #include "node_server.hpp"
 #include <boost/serialization/list.hpp>
 
-node_client::node_client(const hpx::id_type& id) :
-		base_type(id) {
+node_client::node_client(hpx::future<hpx::id_type>&& id) :
+base_type(std::move(id)) {
+}
+
+hpx::future<hpx::id_type> node_client::copy_to_locality(const hpx::id_type& id) const {
+	return hpx::async<typename node_server::copy_to_locality_action>(get_gid(), id);
+}
+
+node_client& node_client::operator=(hpx::future<hpx::id_type>&& id) {
+	static_cast<base_type*>(this)->operator=(std::move(id));
+	return *this;
 }
 
 node_client::node_client() :
 		base_type() {
 }
 
-hpx::future<void> node_client::solve_gravity( bool ene) const {
+hpx::future<void> node_client::solve_gravity(bool ene) const {
 	return hpx::async<typename node_server::solve_gravity_action>(get_gid(), ene);
 }
-
 
 hpx::future<integer> node_client::regrid_gather() const {
 	return hpx::async<typename node_server::regrid_gather_action>(get_gid());
