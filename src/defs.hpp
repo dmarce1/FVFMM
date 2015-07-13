@@ -26,14 +26,14 @@ enum gsolve_type {
 #include <hpx/hpx.hpp>
 #include <hpx/runtime/components/migrate_component.hpp>
 
-const integer MAX_LEVEL = 1;
+const integer MAX_LEVEL = 2;
 enum boundary_type {OUTFLOW, REFLECT};
 
 const integer NDIM = 3;
 
 const integer HBW = 2;
 const integer GBW = 2;
-const integer INX = 16;
+const integer INX = 8;
 const integer HNX = 2 * HBW + INX;
 const integer GNX = 2 * GBW + INX;
 const integer HN3 = HNX * HNX * HNX;

@@ -95,6 +95,7 @@ public:
 	};
 	static void merge_output_lists(output_list_type& l1, const output_list_type& l2);
 
+
 	real& hydro_value(integer, integer, integer, integer);
 	real hydro_value(integer, integer, integer, integer) const;
 	multipole& multipole_value(integer, integer, integer, integer);

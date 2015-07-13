@@ -10,7 +10,7 @@ HPX_PLAIN_ACTION(node_server::output, output_action_type);
 
 void node_server::start_run() {
 
-
+	printf("Starting...\n");
 	solve_gravity(false);
 
 	double output_dt = 0.1;
@@ -43,17 +43,25 @@ int hpx_main(int argc, char* argv[]) {
 	feenableexcept(FE_INVALID);
 	feenableexcept(FE_OVERFLOW);
 #endif
-	 node_client root_id = node_client::create(hpx::find_here());
+	node_client root_id = node_client::create(hpx::find_here());
 //	auto root_id = hpx::new_ < node_server > (hpx::find_here()).get();
 	node_client root_client(root_id);
-	root_client.register_(node_location()).get();
+	//root_client.register_(node_location()).get();
 	for (integer l = 0; l < MAX_LEVEL; ++l) {
 		root_client.regrid().get();
+		printf("++++++++++++\n");
 	}
+
+	std::vector < hpx::shared_future < hpx::id_type >> null_sibs(NFACE);
+	for (integer si = 0; si != NFACE; ++si) {
+		null_sibs[si] = hpx::make_ready_future(hpx::invalid_id).share();
+	}
+	root_client.form_tree(root_client.get_gid(), hpx::invalid_id, null_sibs).get();
+	printf("------------\n");
 
 	root_client.start_run().get();
 
-	root_client.unregister(node_location()).get();
+	//root_client.unregister(node_location()).get();
 	printf("Exiting...\n");
 	return hpx::finalize();
 }

@@ -32,36 +32,88 @@ std::atomic<integer> node_server::static_initializing(0);
 std::list<const node_server*> node_server::local_node_list;
 hpx::lcos::local::spinlock node_server::local_node_list_lock;
 
-void node_server::find_family() {
-	if (my_location.level() > 0) {
-		parent = my_location.get_parent().get_id();
+void node_server::form_tree(const hpx::id_type& self_gid, const hpx::id_type& parent_gid,
+		const std::vector<hpx::shared_future<hpx::id_type>>& sib_gids) {
+	for (integer si = 0; si != NFACE; ++si) {
+		siblings[si] = sib_gids[si];
 	}
-	for (integer face = 0; face != NFACE; ++face) {
-		if (!my_location.is_physical_boundary(face)) {
-			siblings[face] = my_location.get_sibling(face).get_id();
-		}
-	}
+	std::vector<hpx::future<void>> cfuts(NCHILD);
+	me = self_gid;
+	parent = parent_gid;
 	if (is_refined) {
 		for (integer ci = 0; ci != NCHILD; ++ci) {
-			children[ci] = my_location.get_child(ci).get_id();
+			std::vector < hpx::shared_future < hpx::id_type >> child_sibs(NFACE);
+			for (integer d = 0; d != NDIM; ++d) {
+				const integer flip = ci ^ (1 << d);
+				const integer bit = (ci >> d) & 1;
+				const integer other = 2 * d + bit;
+				const integer thisf = 2 * d + (1 - bit);
+				child_sibs[thisf] = hpx::make_ready_future(children[flip].get_gid());
+				child_sibs[other] = siblings[other].get_child_client(flip);
+			}
+			cfuts[ci] = children[ci].form_tree(children[ci].get_gid(), me.get_gid(), child_sibs);
 		}
+		hpx::wait_all(cfuts.begin(), cfuts.end());
 	}
+
 }
+
+hpx::id_type node_server::get_child_client(integer ci) {
+	return children[ci].get_gid();
+}
+/*
+
+ void node_server::find_family() {
+ if (my_location.level() > 0) {
+ parent = my_location.get_parent().get_id();
+ }
+ for (integer face = 0; face != NFACE; ++face) {
+ if (!my_location.is_physical_boundary(face)) {
+ siblings[face] = my_location.get_sibling(face).get_id();
+ }
+ }
+ std::vector<hpx::future<void>> futs(NCHILD);
+ if (is_refined) {
+ //	for (integer ci = 0; ci != NCHILD; ++ci) {
+ //	children[ci] = my_location.get_child(ci).get_id();
+ //	}
+ for (integer ci = 0; ci != NCHILD; ++ci) {
+ printf("ff %s ci %i\n", my_location.to_str().c_str(), int(ci));
+ futs[ci] = children[ci].find_family();
+ }
+ hpx::wait_all(futs.begin(), futs.end());
+ }
+ }
+ */
 
 hpx::future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type& id) {
-	return hpx::new_ < node_server > (id, my_location, step_num, is_refined, current_time, xmin, dx, *grid_ptr);
+	std::vector<hpx::id_type> cids;
+	if( is_refined ) {
+		cids.resize(NCHILD);
+		for( integer ci = 0; ci != NCHILD; ++ci) {
+			cids[ci] = children[ci].get_gid();
+		}
+	}
+	auto rc = hpx::new_ < node_server
+			> (id, my_location, step_num, is_refined, current_time, child_descendant_count, *grid_ptr, cids);
+	clear_family();
+	return rc;
 }
 
-node_server::node_server(node_location&& _my_location, integer _step_num, bool _is_refined, real _current_time, std::array<real,NDIM>&& _xmin, real _dx, grid&& _grid) {
+node_server::node_server(node_location&& _my_location, integer _step_num, bool _is_refined, real _current_time, std::array<integer,NCHILD>&& _child_d, grid&& _grid,const std::vector<hpx::id_type>& _c) {
 	my_location = std::move(_my_location);
-	xmin = std::move(_xmin);
-	dx = _dx;
-	step_num = _step_num;
-	is_refined = _is_refined;
-	current_time = _current_time;
 	initialize(_current_time);
+	is_refined = _is_refined;
+	step_num = _step_num;
+	current_time = _current_time;
 	grid_ptr = std::make_shared<grid>(std::move(_grid));
-	find_family();
+	if( is_refined ) {
+		children.resize(NCHILD);
+		for( integer ci = 0; ci != NCHILD; ++ci) {
+			children[ci] = _c[ci];
+		}
+	}
+	child_descendant_count = _child_d;
 }
 
 real node_server::step() {
@@ -197,12 +249,12 @@ void node_server::initialize(real t) {
 }
 
 node_server::~node_server() {
-	printf("Destroying grid at %i: %i %i %i w on locality %i\n", int(my_location.level()), int(my_location[0]),
-			int(my_location[1]), int(my_location[2]), int(hpx::get_locality_id()));
 
 	boost::lock_guard<hpx::lcos::local::spinlock> lock(local_node_list_lock);
 	--local_node_count;
 	local_node_list.erase(my_list_iterator);
+	printf("Destroying grid at %i: %i %i %i w on locality %i\n", int(my_location.level()), int(my_location[0]),
+			int(my_location[1]), int(my_location[2]), int(hpx::get_locality_id()));
 }
 
 node_server::node_server() {
@@ -233,13 +285,13 @@ integer node_server::regrid_gather() {
 		if (count == 1) {
 			std::vector<hpx::future<void>> futs(NCHILD);
 			for (integer ci = 0; ci != NCHILD; ++ci) {
-				futs[ci] = children[ci].unregister(my_location.get_child(ci));
+				//			futs[ci] = children[ci].unregister(my_location.get_child(ci));
 				children[ci] = node_client();
 			}
 			is_refined = false;
 			const integer flags = ((my_location.level() == 0) ? GRID_IS_ROOT : 0) | GRID_IS_LEAF;
 			grid_ptr = std::make_shared < grid > (dx, xmin, flags);
-			hpx::wait_all(futs.begin(), futs.end());
+			//		hpx::wait_all(futs.begin(), futs.end());
 		}
 
 	} else {
@@ -257,14 +309,14 @@ integer node_server::regrid_gather() {
 				clocs[ci] = my_location.get_child(ci);
 				children[ci] = node_client::create(hpx::find_here(), clocs[ci], me, current_time);
 			}
-			for (integer ci = 0; ci != NCHILD; ++ci) {
-				vfuts[ci] = children[ci].register_(clocs[ci]);
-			}
+			//		for (integer ci = 0; ci != NCHILD; ++ci) {
+			//			vfuts[ci] = children[ci].register_(clocs[ci]);
+			//		}
 			is_refined = true;
 			const integer flags = (my_location.level() == 0) ? GRID_IS_ROOT : 0;
 			grid_ptr = std::make_shared < grid > (dx, xmin, flags);
 
-			hpx::wait_all(vfuts.begin(), vfuts.end());
+			//		hpx::wait_all(vfuts.begin(), vfuts.end());
 		}
 	}
 	return count;
@@ -276,40 +328,37 @@ void node_server::regrid() {
 	assert(grid_ptr!=nullptr);
 }
 
-void node_server::regrid_scatter(integer a, integer total) {
+void node_server::regrid_scatter(integer a_, integer total) {
+	std::vector<hpx::future<void>> futs(NCHILD);
+//	std::vector<hpx::future<void>> futs2(NCHILD);
 	if (is_refined) {
+		integer a = a_;
 		const auto localities = hpx::find_all_localities();
 		++a;
-		std::vector<hpx::future<void>> futs(NCHILD);
 		for (integer ci = 0; ci != NCHILD; ++ci) {
 			const integer loc_index = a * localities.size() / total;
 			const auto child_loc = localities[loc_index];
 			a += child_descendant_count[ci];
-			children[ci].unregister(my_location.get_child(ci)).get();
 			children[ci] = children[ci].copy_to_locality(child_loc);
-			//		printf("%i %i %i, %i\n", int(a), int(localities.size()), int(total), int(loc_index));
 		}
-		for (integer ci = 0; ci != NCHILD; ++ci) {
-			futs[ci] = children[ci].register_(my_location.get_child(ci));
-
-		}
-		hpx::wait_all(futs.begin(), futs.end());
+		a = a_ + 1;
 		for (integer ci = 0; ci != NCHILD; ++ci) {
 			futs[ci] = children[ci].regrid_scatter(a, total);
+			a += child_descendant_count[ci];
 		}
+	}
+	clear_family();
+	if (is_refined) {
 		hpx::wait_all(futs.begin(), futs.end());
 	}
-	std::vector<hpx::future<node_client>> sib_futs(NFACE);
+}
+
+void node_server::clear_family() {
 	for (integer si = 0; si != NFACE; ++si) {
-		if (!my_location.is_physical_boundary(si)) {
-			sib_futs[si] = my_location.get_sibling(si).get_client();
-		} else {
-			sib_futs[si] = hpx::make_ready_future(node_client());
-		}
+		siblings[si] = hpx::invalid_id;
 	}
-	for (integer si = 0; si != NFACE; ++si) {
-		siblings[si] = sib_futs[si].get();
-	}
+	parent = hpx::invalid_id;
+	me = hpx::invalid_id;
 }
 
 grid::output_list_type node_server::output(const std::string& filename) {
@@ -345,7 +394,8 @@ grid::output_list_type node_server::output(const std::string& filename) {
 }
 
 void node_server::solve_gravity(bool ene) {
-///	printf("!!!!!!!!!!!!!!\n");
+//	printf("%s\n", my_location.to_str().c_str());
+
 	std::vector<hpx::future<void>> child_futs(NCHILD);
 	if (is_refined) {
 		for (integer ci = 0; ci != NCHILD; ++ci) {

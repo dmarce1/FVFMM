@@ -43,8 +43,7 @@ public:
 		arc & *grid_ptr;
 	}
 
-	node_server(node_location&&, integer, bool, real, std::array<real,NDIM>&&, real, grid&&);
-	void find_family();
+	node_server(node_location&&, integer, bool, real, std::array<integer,NCHILD>&&, grid&&, const std::vector<hpx::id_type>&);
 private:
 	std::array<std::array<std::shared_ptr<channel<std::vector<real>>> ,NFACE>,NRK> sibling_hydro_channels;
 	std::shared_ptr<channel<expansion_pass_type>> parent_gravity_channel;
@@ -70,6 +69,7 @@ private:
 	void initialize(real);
 	void collect_hydro_boundaries(integer rk);
 	static void static_initialize();
+	void clear_family();
 
 public:
 
@@ -124,6 +124,19 @@ public:
 
 	hpx::future<hpx::id_type> copy_to_locality(const hpx::id_type& );
 	HPX_DEFINE_COMPONENT_ACTION(node_server, copy_to_locality, copy_to_locality_action);
+
+//	void find_family();
+//	HPX_DEFINE_COMPONENT_ACTION(node_server, find_family, find_family_action);
+
+	hpx::id_type get_child_client(integer ci);
+	HPX_DEFINE_COMPONENT_ACTION(node_server, get_child_client, get_child_client_action);
+
+	std::vector<hpx::shared_future<hpx::id_type>> get_sibling_clients( integer ci);
+	HPX_DEFINE_COMPONENT_ACTION(node_server, get_sibling_clients, get_sibling_clients_action);
+
+	void form_tree(const hpx::id_type&, const hpx::id_type&, const std::vector<hpx::shared_future<hpx::id_type>>& );
+	HPX_DEFINE_COMPONENT_ACTION(node_server, form_tree, form_tree_action);
+
 };
 
 //HPX_REGISTER_ACTION_DECLARATION (node_server::start_run_action);

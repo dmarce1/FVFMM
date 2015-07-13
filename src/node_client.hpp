@@ -19,11 +19,17 @@ private:
 	typedef hpx::components::client_base<node_client, node_server> base_type;
 public:
 	node_client();
+	hpx::future<void> form_tree(const hpx::id_type&, const hpx::id_type&, const std::vector<hpx::shared_future<hpx::id_type>>& );
+	hpx::future<hpx::id_type> get_child_client(integer ci);
+	node_client(const hpx::shared_future<hpx::id_type>& id);
+	node_client& operator=(const hpx::shared_future<hpx::id_type>& id);
 	node_client(hpx::future<hpx::id_type>&& id);
 	node_client& operator=(hpx::future<hpx::id_type>&& id);
+	node_client( const hpx::id_type& id);
+	node_client& operator=(const hpx::id_type& id);
 	hpx::future<void> regrid_scatter(integer, integer) const;
-	hpx::future<void> register_(const node_location&) const;
-	hpx::future<void> unregister(const node_location&) const;
+	//hpx::future<void> register_(const node_location&) const;
+	//hpx::future<void> unregister(const node_location&) const;
 	hpx::future<integer> regrid_gather() const;
 	hpx::future<void> send_hydro_boundary(const std::vector<real>, integer rk, integer face) const;
 	hpx::future<void> send_gravity_boundary(const std::vector<real>, integer face) const;
@@ -34,7 +40,7 @@ public:
 	hpx::future<void> regrid() const;
 	hpx::future<void> solve_gravity(bool ene=true) const;
 	hpx::future<hpx::id_type> copy_to_locality(const hpx::id_type& ) const;
+//	hpx::future<void> find_family() const;
 
-
-};
+		};
 #endif /* NODE_CLIENT_HPP_ */
