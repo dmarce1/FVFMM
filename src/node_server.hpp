@@ -125,9 +125,6 @@ public:
 	hpx::future<hpx::id_type> copy_to_locality(const hpx::id_type& );
 	HPX_DEFINE_COMPONENT_ACTION(node_server, copy_to_locality, copy_to_locality_action);
 
-//	void find_family();
-//	HPX_DEFINE_COMPONENT_ACTION(node_server, find_family, find_family_action);
-
 	hpx::id_type get_child_client(integer ci);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, get_child_client, get_child_client_action);
 
@@ -139,8 +136,19 @@ public:
 
 };
 
-//HPX_REGISTER_ACTION_DECLARATION (node_server::start_run_action);
-//HPX_REGISTER_ACTION_DECLARATION (node_server::step_action);
-//HPX_REGISTER_ACTION_DECLARATION (node_server::solve_gravity_action);
+
+HPX_REGISTER_ACTION_DECLARATION( node_server::regrid_gather_action);
+HPX_REGISTER_ACTION_DECLARATION( node_server::regrid_scatter_action);
+HPX_REGISTER_ACTION_DECLARATION( node_server::send_hydro_boundary_action);
+HPX_REGISTER_ACTION_DECLARATION( node_server::send_gravity_boundary_action);
+HPX_REGISTER_ACTION_DECLARATION( node_server::send_gravity_multipoles_action);
+HPX_REGISTER_ACTION_DECLARATION( node_server::send_gravity_expansions_action);
+HPX_REGISTER_ACTION_DECLARATION( node_server::step_action);
+HPX_REGISTER_ACTION_DECLARATION( node_server::regrid_action);
+HPX_REGISTER_ACTION_DECLARATION( node_server::solve_gravity_action);
+HPX_REGISTER_ACTION_DECLARATION( node_server::start_run_action);
+HPX_REGISTER_ACTION_DECLARATION( node_server::copy_to_locality_action);
+HPX_REGISTER_ACTION_DECLARATION( node_server::get_child_client_action);
+HPX_REGISTER_ACTION_DECLARATION( node_server::form_tree_action);
 
 #endif /* NODE_SERVER_HPP_ */

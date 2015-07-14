@@ -14,13 +14,33 @@ HPX_PLAIN_ACTION(node_server::get_local_timestep, get_local_timestep_action);
 HPX_PLAIN_ACTION(node_server::set_global_timestep, set_global_timestep_action);
 HPX_PLAIN_ACTION(node_server::output, output_action);
 
-typedef node_server::start_run_action start_run_action_type;
+typedef node_server::regrid_gather_action regrid_gather_action_type;
+typedef node_server::regrid_scatter_action regrid_scatter_action_type;
+typedef node_server::send_hydro_boundary_action send_hydro_boundary_action_type;
+typedef node_server::send_gravity_boundary_action send_gravity_boundary_action_type;
+typedef node_server::send_gravity_multipoles_action send_gravity_multipoles_action_type;
+typedef node_server::send_gravity_expansions_action send_gravity_expansions_action_type;
 typedef node_server::step_action step_action_type;
+typedef node_server::regrid_action regrid_action_type;
 typedef node_server::solve_gravity_action solve_gravity_action_type;
+typedef node_server::start_run_action start_run_action_type;
+typedef node_server::copy_to_locality_action copy_to_locality_action_type;
+typedef node_server::get_child_client_action get_child_client_action_type;
+typedef node_server::form_tree_action form_tree_action_type;
 
-//HPX_REGISTER_ACTION (start_run_action_type);
-//HPX_REGISTER_ACTION (step_action_type);
-//HPX_REGISTER_ACTION (solve_gravity_action_type);
+HPX_REGISTER_ACTION(regrid_gather_action_type);
+HPX_REGISTER_ACTION(regrid_scatter_action_type);
+HPX_REGISTER_ACTION(send_hydro_boundary_action_type);
+HPX_REGISTER_ACTION(send_gravity_boundary_action_type);
+HPX_REGISTER_ACTION(send_gravity_multipoles_action_type);
+HPX_REGISTER_ACTION(send_gravity_expansions_action_type);
+HPX_REGISTER_ACTION(step_action_type);
+HPX_REGISTER_ACTION(regrid_action_type);
+HPX_REGISTER_ACTION(solve_gravity_action_type);
+HPX_REGISTER_ACTION(start_run_action_type);
+HPX_REGISTER_ACTION(copy_to_locality_action_type);
+HPX_REGISTER_ACTION(get_child_client_action_type);
+HPX_REGISTER_ACTION(form_tree_action_type);
 
 integer node_server::local_node_count = 0;
 hpx::lcos::local::spinlock node_server::timestep_lock;
@@ -61,30 +81,6 @@ void node_server::form_tree(const hpx::id_type& self_gid, const hpx::id_type& pa
 hpx::id_type node_server::get_child_client(integer ci) {
 	return children[ci].get_gid();
 }
-/*
-
- void node_server::find_family() {
- if (my_location.level() > 0) {
- parent = my_location.get_parent().get_id();
- }
- for (integer face = 0; face != NFACE; ++face) {
- if (!my_location.is_physical_boundary(face)) {
- siblings[face] = my_location.get_sibling(face).get_id();
- }
- }
- std::vector<hpx::future<void>> futs(NCHILD);
- if (is_refined) {
- //	for (integer ci = 0; ci != NCHILD; ++ci) {
- //	children[ci] = my_location.get_child(ci).get_id();
- //	}
- for (integer ci = 0; ci != NCHILD; ++ci) {
- printf("ff %s ci %i\n", my_location.to_str().c_str(), int(ci));
- futs[ci] = children[ci].find_family();
- }
- hpx::wait_all(futs.begin(), futs.end());
- }
- }
- */
 
 hpx::future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type& id) {
 	std::vector<hpx::id_type> cids;
