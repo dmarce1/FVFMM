@@ -19,9 +19,9 @@ class simd_vector {
 private:
 	__m256d v[SIMD_SIZE];
 public:
-	inline simd_vector() = default;
+	simd_vector() = default;
 	inline ~simd_vector() = default;
-	inline simd_vector(const simd_vector&) = default;
+	simd_vector(const simd_vector&) = default;
 	inline simd_vector(double d) {
 		for( integer i = 0; i!= SIMD_SIZE; ++i) {
 			v[i] =_mm256_set_pd(d,d,d,d);
@@ -34,10 +34,16 @@ public:
 		}
 		return r;
 	}
-	inline simd_vector(simd_vector&&) = default;
-	inline simd_vector& operator=(const simd_vector&) = default;
-	inline simd_vector& operator=(simd_vector&&) = default;
-
+	simd_vector(simd_vector&& other) {
+		*this = std::move(other);
+	}
+	inline simd_vector& operator=(const simd_vector& other) = default;
+	simd_vector& operator=(simd_vector&& other) {
+		for( integer i = 0; i != SIMD_SIZE; ++i ) {
+			v[i] = other.v[i];		
+		}	
+		return *this;
+	}
 	inline simd_vector& conditional_assignment(const simd_vector& other, const simd_vector& mask) {
 		for( integer i = 0; i != SIMD_SIZE; ++i) {
 			_mm256_maskstore_pd(reinterpret_cast<double*>(v + i), (__m256i) mask.v[i], other.v[i]);

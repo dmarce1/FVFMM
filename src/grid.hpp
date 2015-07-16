@@ -18,6 +18,7 @@
 
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
+#include <boost/serialization/array.hpp>
 #include <boost/serialization/vector.hpp>
 #include <boost/serialization/list.hpp>
 #include <boost/serialization/set.hpp>
@@ -36,17 +37,7 @@ const integer GRID_IS_LEAF = 0x2;
 class grid {
 public:
 	typedef std::array<real, NDIM> xpoint;
-	struct node_point {
-		xpoint pt;
-		integer index;
-		template<class Arc>
-		void serialize(Arc& arc, unsigned) {
-			arc & pt;
-			arc & index;
-		}
-		bool operator==(const node_point& other) const;
-		bool operator<(const node_point& other) const;
-	};
+	struct node_point;
 private:
 	bool is_root;
 	bool is_leaf;
@@ -82,17 +73,7 @@ private:
 	static bool xpoint_eq(const xpoint& a, const xpoint& b);
 public:
 
-	struct output_list_type {
-		std::set<node_point> nodes;
-		std::list<integer> zones;
-		std::array<std::vector<real>, NF + NGF> data;
-		template<class Arc>
-		void serialize(Arc& arc, unsigned int) {
-			arc & nodes;
-			arc & zones;
-			arc & data;
-		}
-	};
+	struct output_list_type;
 	static void merge_output_lists(output_list_type& l1, const output_list_type& l2);
 
 
@@ -167,5 +148,34 @@ public:
 	BOOST_SERIALIZATION_SPLIT_MEMBER()
 	;
 };
+
+	struct grid::node_point {
+		xpoint pt;
+		integer index;
+		template<class Arc>
+		void serialize(Arc& arc, unsigned) {
+			arc & pt[XDIM];
+			arc & pt[YDIM];
+			arc & pt[ZDIM];
+			arc & index;
+		}
+		bool operator==(const grid::node_point& other) const;
+		bool operator<(const grid::node_point& other) const;
+	};
+
+
+	struct grid::output_list_type {
+		std::set<node_point> nodes;
+		std::list<integer> zones;
+		std::array<std::vector<real>, NF + NGF> data;
+		template<class Arc>
+		void serialize(Arc& arc, unsigned int) {
+			arc & nodes;
+			arc & zones;
+			for( integer i = 0; i != NF + NGF; ++i ) {
+				arc & data[i];
+			}
+		}
+	};
 
 #endif /* GRID_HPP_ */

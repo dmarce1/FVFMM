@@ -5,8 +5,11 @@
  *      Author: dmarce1
  */
 
-#ifndef TYPES_HPP_
-#define TYPES_HPP_
+
+#ifndef TYPES444_HPP_
+#define TYPES444_HPP_
+
+#include <hpx/hpx.hpp>
 
 #include <array>
 #include <vector>
@@ -23,10 +26,25 @@ enum gsolve_type {
 
 
 
-#include <hpx/hpx.hpp>
-#include <hpx/runtime/components/migrate_component.hpp>
 
-const integer MAX_LEVEL = 2;
+#include <boost/serialization/serialization.hpp>
+#include <boost/serialization/vector.hpp>
+#include <boost/serialization/array.hpp>
+
+/*namespace boost {
+namespace serialization {
+
+template<class Archive, class T, size_t N>
+void serialize(Archive & ar, std::array<T,N> & a, const unsigned int version)
+{
+  ar & boost::serialization::make_array(a.data(), a.size());
+}
+
+} // namespace serialization
+} // namespace boost
+*/
+
+const integer MAX_LEVEL = 4;
 enum boundary_type {OUTFLOW, REFLECT};
 
 const integer NDIM = 3;

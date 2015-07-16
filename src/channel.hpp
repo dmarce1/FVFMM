@@ -26,10 +26,16 @@ public:
 		future = promise.get_future();
 	}
 	~channel() = default;
-	channel(channel&&) = default;
 	channel(const channel&) = delete;
-	channel& operator=(channel&&) = default;
-	channel& operator=(const channel&) = delete;
+	channel(channel&& other ) {
+		future = std::move(other.future);
+		promise = std::move(other.promise);
+	}
+	channel& operator=(channel&& other ) {
+		future = std::move(other.future);
+		promise = std::move(other.promise);
+		return *this;
+	}
 
 	template<class U>
 	void set_value( U value ) {

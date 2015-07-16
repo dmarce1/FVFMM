@@ -13,17 +13,14 @@
 #include "node_server.hpp"
 
 void node_server::collect_hydro_boundaries(integer rk) {
-	std::vector<hpx::future<void>> send_futs(NFACE);
+	std::list<hpx::future<void>> send_futs;
 	std::array<bool, NFACE> is_physical;
-	for (integer face = 0; face != NFACE; ++face) {
-		send_futs[face] = hpx::make_ready_future();
-	}
 	for (integer dim = 0; dim != NDIM; ++dim) {
 		for (integer face = 2 * dim; face != 2 * dim + 2; ++face) {
 			is_physical[face] = my_location.is_physical_boundary(face);
 			if (!is_physical[face]) {
 				const auto bdata = get_hydro_boundary(face);
-				send_futs[face] = siblings[face].send_hydro_boundary(bdata, rk, face ^ 1);
+				send_futs.push_back(siblings[face].send_hydro_boundary(bdata, rk, face ^ 1));
 			}
 		}
 		for (integer face = 2 * dim; face != 2 * dim + 2; ++face) {
@@ -163,19 +160,19 @@ void node_server::set_hydro_boundary(const std::vector<real>& data, integer face
 	}
 }
 
-void node_server::recv_gravity_multipoles(multipole_pass_type&& v, integer ci) {
-	child_gravity_channels[ci]->set_value(std::move(v));
+void node_server::recv_gravity_multipoles(multipole_pass_type&& v, integer ci, integer chan) {
+	child_gravity_channels[chan][ci]->set_value(std::move(v));
 }
 
-void node_server::recv_gravity_expansions(expansion_pass_type&& v) {
-	parent_gravity_channel->set_value(std::move(v));
+void node_server::recv_gravity_expansions(expansion_pass_type&& v,integer chan ){
+	parent_gravity_channel[chan]->set_value(std::move(v));
 }
 
-void node_server::recv_hydro_boundary(std::vector<real>&& bdata, integer rk, integer face) {
+void node_server::recv_hydro_boundary(std::vector<real>&& bdata, integer rk, integer face ) {
 	sibling_hydro_channels[rk][face]->set_value(std::move(bdata));
 }
 
-void node_server::recv_gravity_boundary(std::vector<real>&& bdata, integer face) {
-	sibling_gravity_channels[face]->set_value(std::move(bdata));
+void node_server::recv_gravity_boundary(std::vector<real>&& bdata, integer face,integer chan ) {
+	sibling_gravity_channels[chan][face]->set_value(std::move(bdata));
 }
 

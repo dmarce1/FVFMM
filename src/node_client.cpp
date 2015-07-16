@@ -54,8 +54,8 @@ node_client::node_client() :
 		base_type() {
 }
 
-hpx::future<void> node_client::solve_gravity(bool ene) const {
-	return hpx::async<typename node_server::solve_gravity_action>(get_gid(), ene);
+hpx::future<void> node_client::solve_gravity(bool ene, integer c) const {
+	return hpx::async<typename node_server::solve_gravity_action>(get_gid(), ene, c);
 }
 
 hpx::future<integer> node_client::regrid_gather() const {
@@ -91,16 +91,16 @@ hpx::future<void> node_client::send_hydro_boundary(const std::vector<real> data,
 	return hpx::async<typename node_server::send_hydro_boundary_action>(get_gid(), data, rk, face);
 }
 
-hpx::future<void> node_client::send_gravity_boundary(const std::vector<real> data, integer face) const {
-	return hpx::async<typename node_server::send_gravity_boundary_action>(get_gid(), data, face);
+hpx::future<void> node_client::send_gravity_boundary(const std::vector<real> data, integer face, integer c) const {
+	return hpx::async<typename node_server::send_gravity_boundary_action>(get_gid(), data, face, c);
 }
 
-hpx::future<void> node_client::send_gravity_multipoles(const multipole_pass_type& data, integer ci) const {
-	return hpx::async<typename node_server::send_gravity_multipoles_action>(get_gid(), data, ci);
+hpx::future<void> node_client::send_gravity_multipoles(const multipole_pass_type& data, integer ci, integer c) const {
+	return hpx::async<typename node_server::send_gravity_multipoles_action>(get_gid(), data, ci, c);
 }
 
-hpx::future<void> node_client::send_gravity_expansions(const expansion_pass_type& data) const {
-	return hpx::async<typename node_server::send_gravity_expansions_action>(get_gid(), data);
+hpx::future<void> node_client::send_gravity_expansions(const expansion_pass_type& data, integer c) const {
+	return hpx::async<typename node_server::send_gravity_expansions_action>(get_gid(), data, c);
 }
 
 hpx::future<real> node_client::step() const {

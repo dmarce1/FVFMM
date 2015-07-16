@@ -8,6 +8,8 @@
 #ifndef NODE_SERVER_HPP_
 #define NODE_SERVER_HPP_
 
+#include <atomic>
+
 #include "defs.hpp"
 #include "node_location.hpp"
 #include "node_client.hpp"
@@ -46,9 +48,9 @@ public:
 	node_server(node_location&&, integer, bool, real, std::array<integer,NCHILD>&&, grid&&, const std::vector<hpx::id_type>&);
 private:
 	std::array<std::array<std::shared_ptr<channel<std::vector<real>>> ,NFACE>,NRK> sibling_hydro_channels;
-	std::shared_ptr<channel<expansion_pass_type>> parent_gravity_channel;
-	std::array<std::shared_ptr<channel<std::vector<real>>> ,NFACE> sibling_gravity_channels;
-	std::array<std::shared_ptr<channel<multipole_pass_type>>, NCHILD> child_gravity_channels;
+	std::array<std::shared_ptr<channel<expansion_pass_type>>,4> parent_gravity_channel;
+	std::array<std::array<std::shared_ptr<channel<std::vector<real>>> ,NFACE>,4> sibling_gravity_channels;
+	std::array<std::array<std::shared_ptr<channel<multipole_pass_type>>, NCHILD>,4> child_gravity_channels;
 	std::shared_ptr<channel<real>> global_timestep_channel;
 
 	std::list<const node_server*>::iterator my_list_iterator;
@@ -99,13 +101,13 @@ public:
 	void recv_hydro_boundary( std::vector<real>&&, integer rk, integer face);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_hydro_boundary, send_hydro_boundary_action);
 
-	void recv_gravity_boundary( std::vector<real>&&, integer face);
+	void recv_gravity_boundary( std::vector<real>&&, integer face, integer);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_gravity_boundary, send_gravity_boundary_action);
 
-	void recv_gravity_multipoles( multipole_pass_type&&, integer ci);
+	void recv_gravity_multipoles( multipole_pass_type&&, integer ci, integer);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_gravity_multipoles, send_gravity_multipoles_action);
 
-	void recv_gravity_expansions(expansion_pass_type&&);
+	void recv_gravity_expansions(expansion_pass_type&&, integer);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_gravity_expansions, send_gravity_expansions_action);
 
 	real step();
@@ -114,9 +116,9 @@ public:
 	void regrid();
 	HPX_DEFINE_COMPONENT_ACTION(node_server, regrid, regrid_action);
 
-	void compute_fmm(gsolve_type gs, bool energy_account = true);
+	void compute_fmm(gsolve_type gs, bool energy_account, integer c);
 
-	void solve_gravity(bool ene=true);
+	void solve_gravity(bool ene, integer c);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, solve_gravity, solve_gravity_action);
 
 	void start_run();

@@ -32,13 +32,13 @@ public:
 	//hpx::future<void> unregister(const node_location&) const;
 	hpx::future<integer> regrid_gather() const;
 	hpx::future<void> send_hydro_boundary(const std::vector<real>, integer rk, integer face) const;
-	hpx::future<void> send_gravity_boundary(const std::vector<real>, integer face) const;
-	hpx::future<void> send_gravity_multipoles(const multipole_pass_type&, integer ci) const;
-	hpx::future<void> send_gravity_expansions(const expansion_pass_type&) const;
+	hpx::future<void> send_gravity_boundary(const std::vector<real>, integer face, integer) const;
+	hpx::future<void> send_gravity_multipoles(const multipole_pass_type&, integer ci, integer) const;
+	hpx::future<void> send_gravity_expansions(const expansion_pass_type&, integer) const;
 	hpx::future<real> step() const;
 	hpx::future<void> start_run() const;
 	hpx::future<void> regrid() const;
-	hpx::future<void> solve_gravity(bool ene=true) const;
+	hpx::future<void> solve_gravity(bool ene, integer c) const;
 	hpx::future<hpx::id_type> copy_to_locality(const hpx::id_type& ) const;
 //	hpx::future<void> find_family() const;
 

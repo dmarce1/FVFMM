@@ -29,7 +29,7 @@ real node_location::x_location(integer d) const {
 
 node_location::node_location() {
 	lev = 0;
-	xloc = {0,0,0};
+	xloc = {{0,0,0}};
 }
 
 integer node_location::level() const {
@@ -159,7 +159,7 @@ std::size_t node_location::unique_id() const {
 }
 
 hpx::future<node_client> node_location::get_client() const {
-	return hpx::async([](node_location loc) {
+	return hpx::async([](node_location loc) -> node_client {
 		auto f = hpx::find_id_from_basename("node_location", loc.unique_id());
 		return node_client(std::move(f));
 	}, *this);

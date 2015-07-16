@@ -33,9 +33,14 @@ public:
 	taylor() = default;
 	~taylor() = default;
 	taylor(const taylor<N,T>&) = default;
-	taylor(taylor<N,T>&&) = default;
+	taylor(taylor<N,T>&& other) {
+		data = std::move(other.data);
+	}
 	taylor<N,T>& operator=(const taylor<N,T>&) = default;
-	taylor<N,T>& operator=(taylor<N,T>&&) = default;
+	taylor<N,T>& operator=(taylor<N,T>&& other) {
+		data = std::move(other.data);
+		return *this;
+	}
 
 	taylor<N,T>& operator=(T d) {
 #pragma GCC ivdep

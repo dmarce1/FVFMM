@@ -1,19 +1,23 @@
-#include "node_server.hpp"
-#include "node_client.hpp"
 #ifndef NDEBUG
 #include <fenv.h>
 #else
 #include <mpi.h>
 #endif
 
+#include "defs.hpp"
+
+#include "node_server.hpp"
+#include "node_client.hpp"
+
+
 HPX_PLAIN_ACTION(node_server::output, output_action_type);
 
 void node_server::start_run() {
 
 	printf("Starting...\n");
-	solve_gravity(false);
+	solve_gravity(false, 3);
 
-	double output_dt = 0.1;
+	double output_dt = 0.01;
 	integer output_cnt = 0;
 
 	real t = ZERO;
@@ -30,8 +34,9 @@ void node_server::start_run() {
 			free(fname);
 			printf("--- output ---\n");
 		}
+		double tstart = MPI_Wtime();
 		real dt = step();
-		printf("%i %e %e\n", int(step_num), double(t), double(dt));
+		printf("%i %e %e %e\n", int(step_num), double(t), double(dt), MPI_Wtime() - tstart);
 		t += dt;
 		++step_num;
 	}

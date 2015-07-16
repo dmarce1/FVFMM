@@ -90,7 +90,7 @@ grid::output_list_type grid::get_output_list() const {
 					this_x.pt[ZDIM] = X[ZDIM][iii] + (real(zi) - HALF) * dx;
 					auto iter = node_list.find(this_x);
 					integer index;
-					if (iter != std::end(node_list)) {
+					if (iter != node_list.end()) {
 						index = iter->index;
 					} else {
 						index = node_list.size();
@@ -124,7 +124,7 @@ void grid::output(const output_list_type& olists, const char* filename) {
 				const int nzones = zone_list.size() / NVERTEX;
 				std::vector<int> zone_nodes(nzones * NVERTEX);
 				integer index = 0;
-				for (auto iter = std::begin(zone_list); iter != std::end(zone_list); ++iter) {
+				for (auto iter = zone_list.begin(); iter != zone_list.end(); ++iter) {
 					zone_nodes[index] = *iter;
 					++index;
 				}
@@ -134,7 +134,7 @@ void grid::output(const output_list_type& olists, const char* filename) {
 				std::vector<double> y_coord(nnodes);
 				std::vector<double> z_coord(nnodes);
 				std::array<double*, NDIM> node_coords = {x_coord.data(), y_coord.data(), z_coord.data()};
-				for (auto iter = std::begin(node_list); iter != std::end(node_list); ++iter) {
+				for (auto iter = node_list.begin(); iter != node_list.end(); ++iter) {
 					x_coord[iter->index] = iter->pt[0];
 					y_coord[iter->index] = iter->pt[1];
 					z_coord[iter->index] = iter->pt[2];

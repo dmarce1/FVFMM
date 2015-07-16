@@ -446,7 +446,7 @@ expansion_pass_type grid::compute_expansions(gsolve_type type, const expansion_p
 		--lev;
 		const integer nxp = (inx / 2) + 2 * HBW;
 
-		auto child_index = [=](integer ip, integer jp, integer kp, integer ci, integer bw=HBW) {
+		auto child_index = [=](integer ip, integer jp, integer kp, integer ci, integer bw=HBW) -> integer {
 			const integer ic = (2 * (ip - HBW)+bw) + ((ci >> 0) & 1);
 			const integer jc = (2 * (jp - HBW)+bw) + ((ci >> 1) & 1);
 			const integer kc = (2 * (kp - HBW)+bw) + ((ci >> 2) & 1);
@@ -542,7 +542,7 @@ multipole_pass_type grid::compute_multipoles(gsolve_type type, const multipole_p
 		const integer nxp = inx + 2 * HBW;
 		const integer nxc = (2 * inx) + 2 * HBW;
 
-		auto child_index = [=](integer ip, integer jp, integer kp, integer ci) {
+		auto child_index = [=](integer ip, integer jp, integer kp, integer ci) -> integer {
 			const integer ic = (2 * ip - HBW) + ((ci >> 0) & 1);
 			const integer jc = (2 * jp - HBW) + ((ci >> 1) & 1);
 			const integer kc = (2 * kp - HBW) + ((ci >> 2) & 1);
