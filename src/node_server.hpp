@@ -75,7 +75,13 @@ private:
 
 public:
 
-	static grid::output_list_type output(const std::string&);
+	static void output_form();
+
+	static grid::output_list_type output_collect(const std::string&);
+
+	static 	grid::output_list_type olist;
+
+
 	static real get_local_timestep();
 	static void set_global_timestep(real);
 

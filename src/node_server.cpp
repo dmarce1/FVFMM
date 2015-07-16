@@ -12,7 +12,6 @@
 HPX_REGISTER_MINIMAL_COMPONENT_FACTORY(hpx::components::simple_component<node_server>, node_server);
 HPX_PLAIN_ACTION(node_server::get_local_timestep, get_local_timestep_action);
 HPX_PLAIN_ACTION(node_server::set_global_timestep, set_global_timestep_action);
-HPX_PLAIN_ACTION(node_server::output, output_action);
 
 typedef node_server::regrid_gather_action regrid_gather_action_type;
 typedef node_server::regrid_scatter_action regrid_scatter_action_type;
@@ -319,7 +318,6 @@ void node_server::regrid() {
 
 void node_server::regrid_scatter(integer a_, integer total) {
 	std::list<hpx::future<void>> futs;
-//	std::vector<hpx::future<void>> futs2(NCHILD);
 	if (is_refined) {
 		integer a = a_;
 		const auto localities = hpx::find_all_localities();
@@ -328,7 +326,9 @@ void node_server::regrid_scatter(integer a_, integer total) {
 			const integer loc_index = a * localities.size() / total;
 			const auto child_loc = localities[loc_index];
 			a += child_descendant_count[ci];
-			children[ci] = children[ci].copy_to_locality(child_loc);
+			if (child_loc != hpx::find_here()) {
+				children[ci] = children[ci].copy_to_locality(child_loc);
+			}
 		}
 		a = a_ + 1;
 		for (integer ci = 0; ci != NCHILD; ++ci) {
@@ -348,35 +348,6 @@ void node_server::clear_family() {
 	}
 	parent = hpx::invalid_id;
 	me = hpx::invalid_id;
-}
-
-grid::output_list_type node_server::output(const std::string& filename) {
-	const auto localities = hpx::find_all_localities();
-	std::list < hpx::future < grid::output_list_type >> futs;
-	if (hpx::get_locality_id() == 0) {
-		for (std::size_t i = 0; i != localities.size(); ++i) {
-			if (localities[i] != hpx::find_here()) {
-				futs.push_back(hpx::async < output_action > (localities[i], filename));
-			}
-		}
-	}
-	grid::output_list_type olist;
-	{
-		boost::lock_guard<hpx::lcos::local::spinlock> lock(local_node_list_lock);
-		for (auto i = local_node_list.begin(); i != local_node_list.end(); ++i) {
-			if (!(*i)->is_refined) {
-				grid::output_list_type this_list = (*i)->grid_ptr->get_output_list();
-				grid::merge_output_lists(olist, std::move(this_list));
-			}
-		}
-	}
-	if (hpx::get_locality_id() == 0) {
-		for (auto i = futs.begin(); i != futs.end(); ++i) {
-			grid::merge_output_lists(olist, i->get());
-		}
-		grid::output(olist, filename.c_str());
-	}
-	return olist;
 }
 
 void node_server::solve_gravity(bool ene, integer c) {

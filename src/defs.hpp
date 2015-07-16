@@ -44,7 +44,8 @@ void serialize(Archive & ar, std::array<T,N> & a, const unsigned int version)
 } // namespace boost
 */
 
-const integer MAX_LEVEL = 4;
+
+const integer MAX_LEVEL = 5;
 enum boundary_type {OUTFLOW, REFLECT};
 
 const integer NDIM = 3;

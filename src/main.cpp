@@ -9,8 +9,8 @@
 #include "node_server.hpp"
 #include "node_client.hpp"
 
-
-HPX_PLAIN_ACTION(node_server::output, output_action_type);
+HPX_PLAIN_ACTION(node_server::output_collect, output_collect_action_type);
+HPX_PLAIN_ACTION(node_server::output_form, output_form_action_type);
 
 void node_server::start_run() {
 
@@ -23,16 +23,27 @@ void node_server::start_run() {
 	real t = ZERO;
 	integer step_num = 0;
 
+	hpx::future<void> output_done = hpx::make_ready_future();
+
 	while (true) {
 
 		if (t / output_dt >= output_cnt) {
+			output_done.get();
 			char* fname;
 			if (asprintf(&fname, "X.%i.silo", int(output_cnt))) {
 			}
 			++output_cnt;
-			hpx::async < output_action_type > (hpx::find_here(), fname).get();
+			printf("--- begin output ---\n");
+			hpx::async < output_form_action_type > (hpx::find_here()).get();
+			printf("--- middle output ---\n");
+			std::string _fname = fname;
+			output_done = (hpx::async < output_collect_action_type > (hpx::find_here(), std::move(_fname))).then(
+					[](hpx::future<grid::output_list_type>) -> void {
+						printf("--- end output ---\n");
+						return;
+					});
+
 			free(fname);
-			printf("--- output ---\n");
 		}
 		double tstart = MPI_Wtime();
 		real dt = step();
