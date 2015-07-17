@@ -34,9 +34,12 @@ typedef std::pair<integer, integer> dpair;
 const integer GRID_IS_ROOT = 0x1;
 const integer GRID_IS_LEAF = 0x2;
 
+typedef float xpoint_type;
+typedef int zone_int_type;
+
 class grid {
 public:
-	typedef std::array<real, NDIM> xpoint;
+	typedef std::array<xpoint_type, NDIM> xpoint;
 	struct node_point;
 private:
 	bool is_root;
@@ -69,16 +72,17 @@ private:
 	std::vector<dpair> ilist_d;
 	std::array<std::vector<dpair>, NFACE> ilist_d_bnd;
 	std::array<std::vector<npair>, NFACE> ilist_n_bnd;
-	static bool float_eq(real a, real b);
 	static bool xpoint_eq(const xpoint& a, const xpoint& b);
 public:
 
 	struct output_list_type;
-	static void merge_output_lists(output_list_type& l1, const output_list_type& l2);
+	static void merge_output_lists(output_list_type& l1, output_list_type& l2);
 
 
 	real& hydro_value(integer, integer, integer, integer);
 	real hydro_value(integer, integer, integer, integer) const;
+	real& spin_value(integer, integer, integer, integer);
+	real spin_value(integer, integer, integer, integer) const;
 	multipole& multipole_value(integer, integer, integer, integer);
 	const multipole& multipole_value(integer, integer, integer, integer) const;
 	const space_vector& center_of_mass_value(integer, integer, integer) const;
@@ -166,7 +170,7 @@ public:
 
 	struct grid::output_list_type {
 		std::set<node_point> nodes;
-		std::list<integer> zones;
+		std::vector<zone_int_type> zones;
 		std::array<std::vector<real>, NF + NGF> data;
 		template<class Arc>
 		void serialize(Arc& arc, unsigned int) {

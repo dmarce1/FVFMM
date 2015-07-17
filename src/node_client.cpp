@@ -15,10 +15,14 @@ hpx::future<hpx::id_type> node_client::copy_to_locality(const hpx::id_type& id) 
 	return hpx::async<typename node_server::copy_to_locality_action>(get_gid(), id);
 }
 
-//hpx::future<void> node_client::find_family() const {
-//	return hpx::async<typename node_server::find_family_action>(get_gid());
-//}
 
+hpx::future<void> node_client::save( const std::string& str) const {
+	return hpx::async<typename node_server::save_action>(get_gid(), str);
+}
+
+hpx::future<void> node_client::load( const std::string& str) {
+	return hpx::async<typename node_server::load_action>(get_gid(), str);
+}
 
 node_client::node_client(const hpx::id_type& id) :
 base_type(id) {

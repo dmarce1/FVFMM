@@ -10,7 +10,7 @@
 HPX_PLAIN_ACTION(node_server::output_form, output_form_action);
 HPX_PLAIN_ACTION(node_server::output_collect, output_collect_action);
 
-grid::output_list_type node_server::olist;
+std::list<grid::output_list_type> node_server::olists;
 
 void node_server::output_form() {
 
@@ -36,11 +36,9 @@ void node_server::output_form() {
 
 	{
 		boost::lock_guard<hpx::lcos::local::spinlock> lock(local_node_list_lock);
-		olist = grid::output_list_type();
 		for (auto i = local_node_list.begin(); i != local_node_list.end(); ++i) {
 			if (!(*i)->is_refined) {
-				grid::output_list_type this_list = (*i)->grid_ptr->get_output_list();
-				grid::merge_output_lists(olist, std::move(this_list));
+				olists.push_back((*i)->grid_ptr->get_output_list());
 			}
 		}
 	}
@@ -70,16 +68,58 @@ grid::output_list_type node_server::output_collect(const std::string& filename) 
 		futs.push_back(hpx::async < output_collect_action > (localities[child_l], filename));
 	}
 
-	{
-		boost::lock_guard<hpx::lcos::local::spinlock> lock(local_node_list_lock);
-		for (auto i = futs.begin(); i != futs.end(); ++i) {
-			grid::merge_output_lists(olist, i->get());
+	grid::output_list_type olist;
+
+	while (olists.size() > 1) {
+	//	printf( "." );
+		fflush(stdout);
+		std::list<hpx::future<void>> merge_futs;
+		std::vector<grid::output_list_type> v(olists.size());
+		auto j = olists.begin();
+		for (integer i = 0; i != integer(olists.size()); ++i) {
+			v[i] = std::move(*j);
+			++j;
 		}
+		olists.clear();
+		for (integer i = 0; i < integer(v.size()); i += 2) {
+			if (i == integer(v.size()) - 1) {
+				olists.push_back(std::move(v[i]));
+			} else {
+				merge_futs.push_back( hpx::async([&](integer i1, integer i2)-> void {
+					auto list1 = std::move(v[i1]);
+					auto list2 = std::move(v[i2]);
+					grid::merge_output_lists(list1, list2);
+					olists.push_back(std::move(list1));
+				}, i, i + 1));
+			}
+		}
+		hpx::wait_all(merge_futs.begin(), merge_futs.end());
 	}
+
+	olist = std::move(olists.front());
+	olists.clear();
+	for (auto i = futs.begin(); i != futs.end(); ++i) {
+//		printf( "+" );
+		fflush(stdout);
+		auto tmp = i->get();
+		grid::merge_output_lists(olist, tmp);
+	}
+//	printf( "*" );
+	fflush(stdout);
 
 	if (hpx::get_locality_id() == 0) {
-		grid::output(std::move(olist), filename.c_str());
-
+	//	printf( "1\n" );
+		grid::output(olist, filename.c_str());
+	//	printf( "0\n" );
 	}
 	return std::move(olist);
+}
+
+
+void node_server::save(std::string const&) const {
+
+}
+
+void node_server::load(std::string const&)  {
+
 }

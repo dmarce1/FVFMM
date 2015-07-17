@@ -13,6 +13,7 @@ CPP_SRCS += \
 ../src/node_location.cpp \
 ../src/node_server.cpp \
 ../src/node_server_decomp.cpp \
+../src/node_server_output.cpp \
 ../src/problem.cpp \
 ../src/roe.cpp \
 ../src/taylor.cpp 
@@ -27,6 +28,7 @@ OBJS += \
 ./src/node_location.o \
 ./src/node_server.o \
 ./src/node_server_decomp.o \
+./src/node_server_output.o \
 ./src/problem.o \
 ./src/roe.o \
 ./src/taylor.o 
@@ -41,6 +43,7 @@ CPP_DEPS += \
 ./src/node_location.d \
 ./src/node_server.d \
 ./src/node_server_decomp.d \
+./src/node_server_output.d \
 ./src/problem.d \
 ./src/roe.d \
 ./src/taylor.d 
@@ -50,7 +53,7 @@ CPP_DEPS += \
 src/%.o: ../src/%.cpp
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C++ Compiler'
-	g++ -D_GLIBCXX_DEBUG -O0 -g3 -Wall -c -fmessage-length=0  -march=native -std=c++11 `pkg-config --cflags hpx_application_debug` -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
+	mpic++ -D_GLIBCXX_DEBUG -O0 -g3 -Wall -c -fmessage-length=0  -march=native -std=c++11 `pkg-config --cflags hpx_application_debug` -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 

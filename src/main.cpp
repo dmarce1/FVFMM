@@ -17,7 +17,7 @@ void node_server::start_run() {
 	printf("Starting...\n");
 	solve_gravity(false, 3);
 
-	double output_dt = 0.01;
+	double output_dt = 0.25;
 	integer output_cnt = 0;
 
 	real t = ZERO;
@@ -27,6 +27,10 @@ void node_server::start_run() {
 
 	while (true) {
 
+
+#ifdef NDEBUG
+		double tstart = MPI_Wtime();
+#endif
 		if (t / output_dt >= output_cnt) {
 			output_done.get();
 			char* fname;
@@ -38,18 +42,22 @@ void node_server::start_run() {
 			printf("--- middle output ---\n");
 			std::string _fname = fname;
 			output_done = (hpx::async < output_collect_action_type > (hpx::find_here(), std::move(_fname))).then(
-					[](hpx::future<grid::output_list_type>) -> void {
+					[](hpx::future<grid::output_list_type>&& fut) -> void {
+						fut.get();
 						printf("--- end output ---\n");
-						return;
 					});
 
 			free(fname);
 		}
-		double tstart = MPI_Wtime();
 		real dt = step();
+#ifdef NDEBUG
 		printf("%i %e %e %e\n", int(step_num), double(t), double(dt), MPI_Wtime() - tstart);
+#else
+		printf("%i %e %e\n", int(step_num), double(t), double(dt));
+#endif
 		t += dt;
 		++step_num;
+
 	}
 }
 

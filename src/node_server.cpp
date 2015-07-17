@@ -128,21 +128,31 @@ real node_server::step() {
 	grid_ptr->store();
 
 	for (integer rk = 0; rk < NRK; ++rk) {
-		grid_ptr->reconstruct();
-		a = grid_ptr->compute_fluxes();
+		if (!is_refined) {
+			grid_ptr->reconstruct();
+			a = grid_ptr->compute_fluxes();
+		} else {
+			a = std::numeric_limits<real>::min();
+		}
 		if (rk == 0) {
 			dt = cfl0 * dx / a;
 			reduce_this_timestep(dt);
 		}
-		grid_ptr->compute_sources();
-		grid_ptr->compute_dudt();
+		if (!is_refined) {
+			grid_ptr->compute_sources();
+			grid_ptr->compute_dudt();
+		}
 		compute_fmm(DRHODT, true, 2 * rk + 0);
 		if (rk == 0) {
 			dt = global_timestep_channel->get();
 		}
-		grid_ptr->next_u(rk, dt);
+		if (!is_refined) {
+			grid_ptr->next_u(rk, dt);
+		}
 		compute_fmm(RHO, true, 2 * rk + 1);
-		collect_hydro_boundaries(rk);
+		if (!is_refined) {
+			collect_hydro_boundaries(rk);
+		}
 	}
 
 	if (is_refined) {

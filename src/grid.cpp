@@ -17,6 +17,17 @@ integer grid::level_count() const {
 	return nlevel;
 }
 
+
+real& grid::spin_value(integer f, integer i, integer j, integer k) {
+	return S[f][i * DNX + j * DNY + k * DNZ];
+}
+
+
+real grid::spin_value(integer f, integer i, integer j, integer k) const {
+	return S[f][i * DNX + j * DNY + k * DNZ];
+}
+
+
 real& grid::hydro_value(integer f, integer i, integer j, integer k) {
 	return U[f][i * DNX + j * DNY + k * DNZ];
 }

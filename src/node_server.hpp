@@ -79,7 +79,7 @@ public:
 
 	static grid::output_list_type output_collect(const std::string&);
 
-	static 	grid::output_list_type olist;
+	static 	std::list<grid::output_list_type> olists;
 
 
 	static real get_local_timestep();
@@ -141,6 +141,12 @@ public:
 
 	void form_tree(const hpx::id_type&, const hpx::id_type&, const std::vector<hpx::shared_future<hpx::id_type>>& );
 	HPX_DEFINE_COMPONENT_ACTION(node_server, form_tree, form_tree_action);
+
+	void save( const std::string& fname) const;
+	HPX_DEFINE_COMPONENT_ACTION(node_server, save, save_action);
+
+	void load( const std::string& fname);
+	HPX_DEFINE_COMPONENT_ACTION(node_server, load, load_action);
 
 };
 

@@ -67,7 +67,7 @@ std::vector<real> node_server::get_hydro_boundary(integer face) {
 
 	std::array<integer, NDIM> lb, ub;
 	std::vector<real> data;
-	const integer size = NF * get_boundary_size(lb, ub, face, INNER);
+	const integer size = (NF + NDIM)* get_boundary_size(lb, ub, face, INNER);
 	data.resize(size);
 	integer iter = 0;
 
@@ -76,6 +76,16 @@ std::vector<real> node_server::get_hydro_boundary(integer face) {
 			for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
 				for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
 					data[iter] = grid_ptr->hydro_value(field, i, j, k);
+					++iter;
+				}
+			}
+		}
+	}
+	for (integer field = 0; field != NDIM; ++field) {
+		for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
+			for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
+				for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
+					data[iter] = grid_ptr->spin_value(field, i, j, k);
 					++iter;
 				}
 			}
@@ -153,6 +163,16 @@ void node_server::set_hydro_boundary(const std::vector<real>& data, integer face
 			for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
 				for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
 					grid_ptr->hydro_value(field, i, j, k) = data[iter];
+					++iter;
+				}
+			}
+		}
+	}
+	for (integer field = 0; field != NDIM; ++field) {
+		for (integer i = lb[XDIM]; i < ub[XDIM]; ++i) {
+			for (integer j = lb[YDIM]; j < ub[YDIM]; ++j) {
+				for (integer k = lb[ZDIM]; k < ub[ZDIM]; ++k) {
+					grid_ptr->spin_value(field, i, j, k) = data[iter];
 					++iter;
 				}
 			}

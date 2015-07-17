@@ -40,6 +40,8 @@ public:
 	hpx::future<void> regrid() const;
 	hpx::future<void> solve_gravity(bool ene, integer c) const;
 	hpx::future<hpx::id_type> copy_to_locality(const hpx::id_type& ) const;
+	hpx::future<void> save( const std::string& ) const;
+	hpx::future<void> load( const std::string& ) ;
 //	hpx::future<void> find_family() const;
 
 		};

@@ -24,14 +24,15 @@ enum gsolve_type {
 	RHO, DRHODT
 };
 
-
+//#define OUTPUT_MULTIPLE_FILES
 
 
 #include <boost/serialization/serialization.hpp>
 #include <boost/serialization/vector.hpp>
 #include <boost/serialization/array.hpp>
 
-/*namespace boost {
+#if BOOST_VERSION<105700
+namespace boost {
 namespace serialization {
 
 template<class Archive, class T, size_t N>
@@ -42,10 +43,11 @@ void serialize(Archive & ar, std::array<T,N> & a, const unsigned int version)
 
 } // namespace serialization
 } // namespace boost
-*/
+
+#endif
 
 
-const integer MAX_LEVEL = 5;
+const integer MAX_LEVEL = 3;
 enum boundary_type {OUTFLOW, REFLECT};
 
 const integer NDIM = 3;
