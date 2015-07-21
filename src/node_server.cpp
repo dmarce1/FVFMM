@@ -8,6 +8,9 @@
 #include "node_server.hpp"
 #include "problem.hpp"
 #include <boost/thread/lock_guard.hpp>
+#include <streambuf>
+#include <fstream>
+#include <iostream>
 
 HPX_REGISTER_MINIMAL_COMPONENT_FACTORY(hpx::components::simple_component<node_server>, node_server);
 HPX_PLAIN_ACTION(node_server::get_local_timestep, get_local_timestep_action);
@@ -26,6 +29,8 @@ typedef node_server::start_run_action start_run_action_type;
 typedef node_server::copy_to_locality_action copy_to_locality_action_type;
 typedef node_server::get_child_client_action get_child_client_action_type;
 typedef node_server::form_tree_action form_tree_action_type;
+typedef node_server::save_action save_action_type;
+typedef node_server::load_action load_action_type;
 
 HPX_REGISTER_ACTION (regrid_gather_action_type);
 HPX_REGISTER_ACTION (regrid_scatter_action_type);
@@ -40,6 +45,8 @@ HPX_REGISTER_ACTION (start_run_action_type);
 HPX_REGISTER_ACTION (copy_to_locality_action_type);
 HPX_REGISTER_ACTION (get_child_client_action_type);
 HPX_REGISTER_ACTION (form_tree_action_type);
+HPX_REGISTER_ACTION (save_action_type);
+HPX_REGISTER_ACTION (load_action_type);
 
 integer node_server::local_node_count = 0;
 hpx::lcos::local::spinlock node_server::timestep_lock;
@@ -50,6 +57,7 @@ bool node_server::static_initialized(false);
 std::atomic<integer> node_server::static_initializing(0);
 std::list<const node_server*> node_server::local_node_list;
 hpx::lcos::local::spinlock node_server::local_node_list_lock;
+
 
 void node_server::form_tree(const hpx::id_type& self_gid, const hpx::id_type& parent_gid,
 		const std::vector<hpx::shared_future<hpx::id_type>>& sib_gids) {
@@ -380,7 +388,6 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, integer gch
 		grid_ptr->egas_to_etot();
 	}
 	multipole_pass_type m_in, m_out;
-	expansion_pass_type l_out;
 	m_out.first.resize(INX * INX * INX);
 	m_out.second.resize(INX * INX * INX);
 	if (is_refined) {
@@ -440,11 +447,12 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, integer gch
 	}
 	const expansion_pass_type ltmp = grid_ptr->compute_expansions(type, my_location.level() == 0 ? nullptr : &l_in);
 	if (is_refined) {
-		l_out.first.resize(INX * INX * INX / NCHILD);
-		if (type == RHO) {
-			l_out.second.resize(INX * INX * INX / NCHILD);
-		}
 		for (integer ci = 0; ci != NCHILD; ++ci) {
+			expansion_pass_type l_out;
+			l_out.first.resize(INX * INX * INX / NCHILD);
+			if (type == RHO) {
+				l_out.second.resize(INX * INX * INX / NCHILD);
+			}
 			const integer x0 = ((ci >> 0) & 1) * INX / 2;
 			const integer y0 = ((ci >> 1) & 1) * INX / 2;
 			const integer z0 = ((ci >> 2) & 1) * INX / 2;
@@ -453,7 +461,8 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, integer gch
 					for (integer k = 0; k != INX / 2; ++k) {
 						const integer io = i * INX * INX / 4 + j * INX / 2 + k;
 						const integer ii = (i + x0) * INX * INX + (j + y0) * INX + k + z0;
-						l_out.first[io] = ltmp.first[ii];
+						auto t =  ltmp.first[ii];
+						l_out.first[io] = t;
 						if (type == RHO) {
 							l_out.second[io] = ltmp.second[ii];
 						}

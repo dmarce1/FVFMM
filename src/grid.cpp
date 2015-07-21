@@ -9,6 +9,8 @@
 #include <cmath>
 #include <cassert>
 
+
+
 bool grid::refine_me(integer lev) const {
 	return lev < MAX_LEVEL;
 }

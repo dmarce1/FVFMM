@@ -11,6 +11,7 @@
 #include "defs.hpp"
 #include "node_location.hpp"
 #include "taylor.hpp"
+#include <boost/mpi/packed_iarchive.hpp>
 
 class node_server;
 
@@ -19,6 +20,8 @@ private:
 	typedef hpx::components::client_base<node_client, node_server> base_type;
 public:
 	node_client();
+	hpx::future<void> save(const std::string& filename) const;
+	hpx::future<std::size_t> load(const std::string& filename, std::size_t) const;
 	hpx::future<void> form_tree(const hpx::id_type&, const hpx::id_type&, const std::vector<hpx::shared_future<hpx::id_type>>& );
 	hpx::future<hpx::id_type> get_child_client(integer ci);
 	node_client(const hpx::shared_future<hpx::id_type>& id);
@@ -40,8 +43,6 @@ public:
 	hpx::future<void> regrid() const;
 	hpx::future<void> solve_gravity(bool ene, integer c) const;
 	hpx::future<hpx::id_type> copy_to_locality(const hpx::id_type& ) const;
-	hpx::future<void> save( const std::string& ) const;
-	hpx::future<void> load( const std::string& ) ;
 //	hpx::future<void> find_family() const;
 
 		};

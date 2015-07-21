@@ -20,13 +20,12 @@ void node_server::start_run() {
 	double output_dt = 0.25;
 	integer output_cnt = 0;
 
-	real t = ZERO;
+	real& t = current_time;
 	integer step_num = 0;
 
 	hpx::future<void> output_done = hpx::make_ready_future();
 
 	while (true) {
-
 
 #ifdef NDEBUG
 		double tstart = MPI_Wtime();
@@ -34,6 +33,14 @@ void node_server::start_run() {
 		if (t / output_dt >= output_cnt) {
 			output_done.get();
 			char* fname;
+
+			printf("--- begin checkpoint ---\n");
+			if (asprintf(&fname, "X.%i.chk", int(output_cnt))) {
+			}
+			save(fname);
+			printf("--- end checkpoint ---\n");
+			free(fname);
+
 			if (asprintf(&fname, "X.%i.silo", int(output_cnt))) {
 			}
 			++output_cnt;
@@ -47,6 +54,10 @@ void node_server::start_run() {
 						printf("--- end output ---\n");
 					});
 
+			free(fname);
+
+			if (asprintf(&fname, "X.%i.silo", int(output_cnt))) {
+			}
 			free(fname);
 		}
 		real dt = step();
@@ -68,12 +79,18 @@ int hpx_main(int argc, char* argv[]) {
 	feenableexcept(FE_OVERFLOW);
 #endif
 	node_client root_id = node_client::create(hpx::find_here());
-//	auto root_id = hpx::new_ < node_server > (hpx::find_here()).get();
 	node_client root_client(root_id);
-	//root_client.register_(node_location()).get();
-	for (integer l = 0; l < MAX_LEVEL; ++l) {
-		root_client.regrid().get();
-		printf("++++++++++++\n");
+
+	if (argc == 1) {
+		for (integer l = 0; l < MAX_LEVEL; ++l) {
+			root_client.regrid().get();
+			printf("++++++++++++\n");
+		}
+	} else {
+		std::string fname(argv[1]);
+		printf( "Loading from %s...\n", fname.c_str());
+			root_client.load(argv[1], 0).get();
+		printf( "Done. \n");
 	}
 
 	std::vector < hpx::shared_future < hpx::id_type >> null_sibs(NFACE);

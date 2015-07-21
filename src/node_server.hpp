@@ -8,13 +8,12 @@
 #ifndef NODE_SERVER_HPP_
 #define NODE_SERVER_HPP_
 
-#include <atomic>
-
 #include "defs.hpp"
 #include "node_location.hpp"
 #include "node_client.hpp"
 #include "grid.hpp"
 #include "channel.hpp"
+#include <atomic>
 
 const integer INNER = 0;
 const integer OUTER = 1;
@@ -45,7 +44,18 @@ public:
 		arc & *grid_ptr;
 	}
 
+
+
+	void save(const std::string& filename) const;
+	HPX_DEFINE_COMPONENT_ACTION(node_server, save, save_action);
+
+	std::size_t load(const std::string& filename, std::size_t sz);
+	HPX_DEFINE_COMPONENT_ACTION(node_server, load, load_action);
+
 	node_server(node_location&&, integer, bool, real, std::array<integer,NCHILD>&&, grid&&, const std::vector<hpx::id_type>&);
+
+	void load_me( FILE* fp);
+	void save_me( FILE* fp ) const;
 private:
 	std::array<std::array<std::shared_ptr<channel<std::vector<real>>> ,NFACE>,NRK> sibling_hydro_channels;
 	std::array<std::shared_ptr<channel<expansion_pass_type>>,4> parent_gravity_channel;
@@ -142,12 +152,6 @@ public:
 	void form_tree(const hpx::id_type&, const hpx::id_type&, const std::vector<hpx::shared_future<hpx::id_type>>& );
 	HPX_DEFINE_COMPONENT_ACTION(node_server, form_tree, form_tree_action);
 
-	void save( const std::string& fname) const;
-	HPX_DEFINE_COMPONENT_ACTION(node_server, save, save_action);
-
-	void load( const std::string& fname);
-	HPX_DEFINE_COMPONENT_ACTION(node_server, load, load_action);
-
 };
 
 
@@ -164,5 +168,7 @@ HPX_REGISTER_ACTION_DECLARATION( node_server::start_run_action);
 HPX_REGISTER_ACTION_DECLARATION( node_server::copy_to_locality_action);
 HPX_REGISTER_ACTION_DECLARATION( node_server::get_child_client_action);
 HPX_REGISTER_ACTION_DECLARATION( node_server::form_tree_action);
+HPX_REGISTER_ACTION_DECLARATION( node_server::save_action);
+HPX_REGISTER_ACTION_DECLARATION( node_server::load_action);
 
 #endif /* NODE_SERVER_HPP_ */

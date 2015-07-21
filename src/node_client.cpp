@@ -8,26 +8,26 @@
 #include "node_server.hpp"
 #include <boost/serialization/list.hpp>
 
-hpx::future<void> node_client::form_tree(const hpx::id_type& id1, const hpx::id_type& id2, const  std::vector<hpx::shared_future<hpx::id_type>>& ids) {
-	return hpx::async<typename node_server::form_tree_action>(get_gid(),id1, id2, std::move(ids));
+hpx::future<std::size_t> node_client::load(const std::string& filename, std::size_t sz) const {
+	return hpx::async<typename node_server::load_action>(get_gid(), filename, sz);
+}
+
+hpx::future<void> node_client::save(const std::string& filename) const {
+	return hpx::async<typename node_server::save_action>(get_gid(), filename);
+}
+
+hpx::future<void> node_client::form_tree(const hpx::id_type& id1, const hpx::id_type& id2,
+		const std::vector<hpx::shared_future<hpx::id_type>>& ids) {
+	return hpx::async<typename node_server::form_tree_action>(get_gid(), id1, id2, std::move(ids));
 }
 hpx::future<hpx::id_type> node_client::copy_to_locality(const hpx::id_type& id) const {
 	return hpx::async<typename node_server::copy_to_locality_action>(get_gid(), id);
 }
 
 
-hpx::future<void> node_client::save( const std::string& str) const {
-	return hpx::async<typename node_server::save_action>(get_gid(), str);
-}
-
-hpx::future<void> node_client::load( const std::string& str) {
-	return hpx::async<typename node_server::load_action>(get_gid(), str);
-}
-
 node_client::node_client(const hpx::id_type& id) :
-base_type(id) {
+		base_type(id) {
 }
-
 
 node_client& node_client::operator=(const hpx::id_type& id) {
 	static_cast<base_type*>(this)->operator=(id);
@@ -38,16 +38,14 @@ node_client::node_client(hpx::future<hpx::id_type>&& id) :
 base_type(std::move(id)) {
 }
 
-
 node_client& node_client::operator=(hpx::future<hpx::id_type>&& id) {
 	static_cast<base_type*>(this)->operator=(std::move(id));
 	return *this;
 }
 
 node_client::node_client(const hpx::shared_future<hpx::id_type>& id) :
-base_type(id) {
+		base_type(id) {
 }
-
 
 node_client& node_client::operator=(const hpx::shared_future<hpx::id_type>& id) {
 	static_cast<base_type*>(this)->operator=(id);
@@ -70,14 +68,14 @@ hpx::future<void> node_client::regrid_scatter(integer a, integer b) const {
 	return hpx::async<typename node_server::regrid_scatter_action>(get_gid(), a, b);
 }
 /*
-hpx::future<void> node_client::register_(const node_location& nloc) const {
-	return hpx::async([=]() {
-		auto fut = hpx::register_id_with_basename("node_location", get_gid(), nloc.unique_id());
-		if( !fut.get() ) {
-			printf( "Failed to register node at location %s\n", nloc.to_str().c_str());
-		}
-	});
-}*/
+ hpx::future<void> node_client::register_(const node_location& nloc) const {
+ return hpx::async([=]() {
+ auto fut = hpx::register_id_with_basename("node_location", get_gid(), nloc.unique_id());
+ if( !fut.get() ) {
+ printf( "Failed to register node at location %s\n", nloc.to_str().c_str());
+ }
+ });
+ }*/
 
 hpx::future<hpx::id_type> node_client::get_child_client(integer ci) {
 	if (get_gid() != hpx::invalid_id) {
@@ -87,9 +85,9 @@ hpx::future<hpx::id_type> node_client::get_child_client(integer ci) {
 	}
 }
 /*
-hpx::future<void> node_client::unregister(const node_location& nloc) const {
-	return hpx::unregister_id_with_basename("node_location", nloc.unique_id());
-}*/
+ hpx::future<void> node_client::unregister(const node_location& nloc) const {
+ return hpx::unregister_id_with_basename("node_location", nloc.unique_id());
+ }*/
 
 hpx::future<void> node_client::send_hydro_boundary(const std::vector<real> data, integer rk, integer face) const {
 	return hpx::async<typename node_server::send_hydro_boundary_action>(get_gid(), data, rk, face);

@@ -151,6 +151,10 @@ public:
 	}
 	BOOST_SERIALIZATION_SPLIT_MEMBER()
 	;
+
+	void load(FILE* fp);
+	void save(FILE* fp) const;
+
 };
 
 	struct grid::node_point {

@@ -116,10 +116,79 @@ grid::output_list_type node_server::output_collect(const std::string& filename) 
 }
 
 
-void node_server::save(std::string const&) const {
 
+void node_server::load_me( FILE* fp) {
+	auto foo = std::fread;
+
+	foo(&is_refined, sizeof(bool), 1, fp);
+	foo(&step_num, sizeof(integer), 1, fp);
+	foo(&current_time,sizeof(real), 1, fp);
+	foo(&dx, sizeof(real), 1,  fp);
+	foo(&(xmin[0]), sizeof(real), NDIM, fp);
+
+	my_location.load(fp);
+	grid_ptr->load(fp);
 }
 
-void node_server::load(std::string const&)  {
+void node_server::save_me( FILE* fp ) const {
+	auto foo = std::fwrite;
 
+	foo(&is_refined, sizeof(bool), 1, fp);
+	foo(&step_num, sizeof(integer), 1, fp);
+	foo(&current_time,sizeof(real), 1, fp);
+	foo(&dx, sizeof(real), 1, fp);
+	foo(&(xmin[0]), sizeof(real), NDIM, fp);
+
+	my_location.save(fp);
+	grid_ptr->save(fp);
 }
+
+void node_server::save(const std::string& filename) const {
+
+	if( my_location.level() == 0 ) {
+		char* str;
+		asprintf(&str, "rm %s\n", filename.c_str() );
+		system( str );
+		free( str);
+	}
+	FILE* fp = fopen( filename.c_str(), "ab");
+	std::size_t locality_id = hpx::get_locality_id();
+	assert(fp);
+	fwrite(&locality_id, sizeof(std::size_t), 1, fp );
+	save_me(fp);
+	fclose(fp);
+	if (is_refined) {
+		for (integer ci = 0; ci != NCHILD; ++ci) {
+			children[ci].save(filename).get();
+		}
+	}
+}
+
+std::size_t node_server::load(const std::string& filename, std::size_t sz) {
+
+	printf( "Loading from locality %i\n", hpx::get_locality_id());
+	FILE* fp = fopen( filename.c_str(), "rb");
+	assert(fp);
+	fseek(fp, sz, SEEK_SET );
+	fseek(fp, sizeof(std::size_t), SEEK_CUR );
+	std::size_t index;
+	load_me(fp);
+	std::size_t pos = ftell(fp);
+	fclose(fp);
+	if (is_refined) {
+		children.resize(NCHILD);
+		auto localities = hpx::find_all_localities();
+		for (integer ci = 0; ci != NCHILD; ++ci) {
+			fp = fopen( filename.c_str(), "rb");
+			fseek(fp, pos, SEEK_SET);
+			fread(&index, sizeof(std::size_t), 1, fp );
+			fclose(fp);
+			printf( "Index = %i\n", index);
+			auto fut = hpx::new_<node_server>(localities[index]);
+			children[ci] = fut.get();
+			pos = children[ci].load(filename, pos).get();
+		}
+	}
+	return pos;
+}
+

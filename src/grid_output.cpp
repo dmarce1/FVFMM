@@ -173,17 +173,50 @@ void grid::output(const output_list_type& olists, const char* filename) {
 			}).join();
 }
 
-void grid::save(const char* filename) const {
-	std::ofstream ofs(filename);
-	boost::archive::binary_oarchive arc(ofs);
-	arc << *this;
-	ofs.close();
+
+
+void grid::load(FILE* fp) {
+	auto foo = std::fread;
+	foo(&is_leaf, sizeof(bool), 1, fp );
+	foo(&is_root, sizeof(bool), 1, fp );
+	foo(&dx, sizeof(real), 1, fp );
+	foo(&t, sizeof(real), 1, fp );
+	foo(&step_num, sizeof(integer), 1, fp );
+	foo(&(xmin[0]), sizeof(real), NDIM, fp );
+
+	allocate();
+
+	for( integer f = 0; f != NF; ++f) {
+		foo(U[f].data(), sizeof(real), U[f].size(), fp);
+	}
+	for( integer f = 0; f != NDIM; ++f) {
+		foo(S[f].data(), sizeof(real), S[f].size(), fp);
+	}
+	for( integer f = 0; f != 4; ++f) {
+		foo(G[f].data(), sizeof(real), G[f].size(), fp);
+	}
+	foo(U_out.data(), sizeof(real), U_out.size(), fp);
+	foo(S_out.data(), sizeof(real), S_out.size(), fp);
 }
 
-void grid::load(const char* filename) {
-	std::ifstream ifs(filename);
-	boost::archive::binary_iarchive arc(ifs);
-	arc >> *this;
-	ifs.close();
+void grid::save(FILE* fp) const {
+	auto foo = std::fwrite;
+	foo(&is_leaf, sizeof(bool), 1, fp );
+	foo(&is_root, sizeof(bool), 1, fp );
+	foo(&dx, sizeof(real), 1, fp );
+	foo(&t, sizeof(real), 1, fp );
+	foo(&step_num, sizeof(integer), 1, fp );
+	foo(&(xmin[0]), sizeof(real), NDIM, fp );
+	for( integer f = 0; f != NF; ++f) {
+		foo(U[f].data(), sizeof(real), U[f].size(), fp);
+	}
+	for( integer f = 0; f != NDIM; ++f) {
+		foo(S[f].data(), sizeof(real), S[f].size(), fp);
+	}
+	for( integer f = 0; f != 4; ++f) {
+		foo(G[f].data(), sizeof(real), G[f].size(), fp);
+	}
+	foo(U_out.data(), sizeof(real), U_out.size(), fp);
+	foo(S_out.data(), sizeof(real), S_out.size(), fp);
 }
 

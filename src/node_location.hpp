@@ -47,6 +47,17 @@ public:
 		arc & lev;
 		arc & xloc;
 	}
+
+	void load(FILE* fp) {
+		fread(&lev, sizeof(integer), 1, fp);
+		fread(xloc.data(), sizeof(integer), NDIM, fp);
+	}
+
+	void save(FILE* fp) const {
+		fwrite(&lev, sizeof(integer), 1, fp);
+		fwrite(xloc.data(), sizeof(integer), NDIM, fp);
+	}
+
 };
 
 #endif /* NODE_LOCATION_HPP_ */
