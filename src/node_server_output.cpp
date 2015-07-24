@@ -6,6 +6,7 @@
  */
 
 #include "node_server.hpp"
+#include <mutex>
 
 HPX_PLAIN_ACTION(node_server::output_form, output_form_action);
 HPX_PLAIN_ACTION(node_server::output_collect, output_collect_action);
@@ -35,7 +36,7 @@ void node_server::output_form() {
 	}
 
 	{
-		boost::lock_guard<hpx::lcos::local::spinlock> lock(local_node_list_lock);
+		std::lock_guard<hpx::lcos::local::spinlock> lock(local_node_list_lock);
 		for (auto i = local_node_list.begin(); i != local_node_list.end(); ++i) {
 			if (!(*i)->is_refined) {
 				olists.push_back((*i)->grid_ptr->get_output_list());

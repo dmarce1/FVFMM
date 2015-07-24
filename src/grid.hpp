@@ -14,14 +14,9 @@
 #include "space_vector.hpp"
 #include <functional>
 #include <list>
-#include <set>
 
-#include <boost/archive/binary_oarchive.hpp>
-#include <boost/archive/binary_iarchive.hpp>
-#include <boost/serialization/array.hpp>
-#include <boost/serialization/vector.hpp>
-#include <boost/serialization/list.hpp>
-#include <boost/serialization/set.hpp>
+//#include <boost/archive/binary_oarchive.hpp>
+//#include <boost/archive/binary_iarchive.hpp>
 #include <list>
 
 struct npair {
@@ -44,7 +39,20 @@ public:
 private:
 	bool is_root;
 	bool is_leaf;
-	std::array<std::vector<real>, NF> U;
+
+	std::vector<std::vector<real>> U;
+	std::vector<std::vector<real>> dUdt;
+	std::vector<std::array<std::vector<real>, NF>> Uf;
+	std::vector<std::array<std::vector<real>, NF>> F;
+	std::vector<std::vector<real>> X;
+	std::vector<std::vector<real>> G;
+	std::vector<std::vector<real>> G0;
+	std::vector<std::vector<real>> S0;
+	std::vector<std::vector<real>> S;
+	std::vector<std::vector<real>> src;
+	std::vector<std::vector<dpair>> ilist_d_bnd;
+	std::vector<std::vector<npair>> ilist_n_bnd;
+
 	std::vector<std::vector<multipole> > M;
 	std::vector<std::vector<expansion> > L;
 	std::vector<std::vector<expansion> > L_c;
@@ -52,26 +60,15 @@ private:
 	std::array<real, NDIM> xmin;
 	integer step_num;
 	integer nlevel;
-	std::array<std::vector<real>, NF> U0;
-	std::array<std::vector<real>, NDIM> S0;
-	std::array<std::vector<real>, NDIM> S;
-	std::array<std::vector<real>, NF> src;
+	std::vector<std::vector<real>> U0;
 	std::vector<real> U_out;
 	std::vector<real> U_out0;
 	std::vector<real> S_out;
 	std::vector<real> S_out0;
-	std::array<std::vector<real>, NF> dUdt;
-	std::array<std::array<std::vector<real>, NF>, NFACE> Uf;
-	std::array<std::array<std::vector<real>, NF>, NDIM> F;
-	std::array<std::vector<real>, NDIM> X;
-	std::array<std::vector<real>, NGF> G;
-	std::array<std::vector<real>, NGF> G0;
 	std::vector<real> dphi_dt;
 	std::vector<std::vector<space_vector> > com;
 	std::vector<npair> ilist_n;
 	std::vector<dpair> ilist_d;
-	std::array<std::vector<dpair>, NFACE> ilist_d_bnd;
-	std::array<std::vector<npair>, NFACE> ilist_n_bnd;
 	static bool xpoint_eq(const xpoint& a, const xpoint& b);
 public:
 
@@ -108,6 +105,7 @@ public:
 			integer flags);
 	grid(real dx, std::array<real, NDIM>, integer flags);
 	grid();
+	~grid();
 	void allocate();
 	void reconstruct();
 	void store();
@@ -149,7 +147,7 @@ public:
 		arc << U_out;
 		arc << S_out;
 	}
-	BOOST_SERIALIZATION_SPLIT_MEMBER()
+	HPX_SERIALIZATION_SPLIT_MEMBER()
 	;
 
 	void load(FILE* fp);

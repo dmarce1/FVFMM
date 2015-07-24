@@ -19,6 +19,10 @@ integer grid::level_count() const {
 	return nlevel;
 }
 
+grid::~grid() {
+
+}
+
 
 real& grid::spin_value(integer f, integer i, integer j, integer k) {
 	return S[f][i * DNX + j * DNY + k * DNZ];
@@ -71,7 +75,7 @@ inline real minmod_theta(real a, real b, real theta) {
 	return minmod(theta * minmod(a, b), HALF * (a + b));
 }
 
-grid::grid(real _dx, std::array<real, NDIM> _xmin, integer flags) :
+grid::grid(real _dx, std::array<real, NDIM> _xmin, integer flags) : U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), S0(NDIM), S(NDIM), src(NF), ilist_d_bnd(NFACE),ilist_n_bnd(NFACE),
 		is_root(flags & GRID_IS_ROOT), is_leaf(flags & GRID_IS_LEAF) {
 	dx = _dx;
 	xmin = _xmin;
@@ -150,11 +154,12 @@ void grid::allocate() {
 
 }
 
-grid::grid() {
+grid::grid() : U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), S0(NDIM), S(NDIM), src(NF), ilist_d_bnd(NFACE),ilist_n_bnd(NFACE)
+{
 }
 
 grid::grid(const std::function<std::vector<real>(real, real, real)>& init_func, real _dx, std::array<real, NDIM> _xmin,
-		integer flags) :
+		integer flags) : U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), S0(NDIM), S(NDIM), src(NF), ilist_d_bnd(NFACE),ilist_n_bnd(NFACE),
 		is_root(flags & GRID_IS_ROOT), is_leaf(flags & GRID_IS_LEAF), U_out(NF, ZERO), U_out0(NF, ZERO), S_out(NDIM,
 				ZERO), S_out0(NDIM, ZERO), dphi_dt(HN3) {
 	dx = _dx;

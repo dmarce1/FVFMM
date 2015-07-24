@@ -8,7 +8,7 @@
 #include "simd.hpp"
 #include "stop_watch.hpp"
 
-#include <boost/thread/lock_guard.hpp>
+//#include <boost/thread/lock_guard.hpp>
 
 void grid::solve_gravity(gsolve_type type) {
 

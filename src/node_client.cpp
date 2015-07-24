@@ -6,7 +6,7 @@
  */
 
 #include "node_server.hpp"
-#include <boost/serialization/list.hpp>
+//#include <boost/serialization/list.hpp>
 
 hpx::future<std::size_t> node_client::load(const std::string& filename, std::size_t sz) const {
 	return hpx::async<typename node_server::load_action>(get_gid(), filename, sz);
@@ -89,20 +89,20 @@ hpx::future<hpx::id_type> node_client::get_child_client(integer ci) {
  return hpx::unregister_id_with_basename("node_location", nloc.unique_id());
  }*/
 
-hpx::future<void> node_client::send_hydro_boundary(const std::vector<real> data, integer rk, integer face) const {
+hpx::future<void> node_client::send_hydro_boundary(const std::vector<real>& data, integer rk, integer face) const {
 	return hpx::async<typename node_server::send_hydro_boundary_action>(get_gid(), data, rk, face);
 }
 
-hpx::future<void> node_client::send_gravity_boundary(const std::vector<real> data, integer face, integer c) const {
-	return hpx::async<typename node_server::send_gravity_boundary_action>(get_gid(), data, face, c);
+void node_client::send_gravity_boundary(const std::vector<real>& data, integer face, integer c) const {
+	hpx::apply<typename node_server::send_gravity_boundary_action>(get_gid(), data, face, c);
 }
 
-hpx::future<void> node_client::send_gravity_multipoles(const multipole_pass_type& data, integer ci, integer c) const {
-	return hpx::async<typename node_server::send_gravity_multipoles_action>(get_gid(), data, ci, c);
+void node_client::send_gravity_multipoles(const multipole_pass_type& data, integer ci, integer c) const {
+	hpx::apply<typename node_server::send_gravity_multipoles_action>(get_gid(), data, ci, c);
 }
 
-hpx::future<void> node_client::send_gravity_expansions(const expansion_pass_type& data, integer c) const {
-	return hpx::async<typename node_server::send_gravity_expansions_action>(get_gid(), data, c);
+void node_client::send_gravity_expansions(const expansion_pass_type& data, integer c) const {
+	hpx::apply<typename node_server::send_gravity_expansions_action>(get_gid(), data, c);
 }
 
 hpx::future<real> node_client::step() const {

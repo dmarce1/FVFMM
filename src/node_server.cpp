@@ -7,7 +7,6 @@
 
 #include "node_server.hpp"
 #include "problem.hpp"
-#include <boost/thread/lock_guard.hpp>
 #include <streambuf>
 #include <fstream>
 #include <iostream>
@@ -135,7 +134,7 @@ real node_server::step() {
 	real cfl0 = cfl;
 	grid_ptr->store();
 
-	for (integer rk = 0; rk < NRK; ++rk) {
+	for (integer rk = 0; rk < 1; ++rk) {
 		if (!is_refined) {
 			grid_ptr->reconstruct();
 			a = grid_ptr->compute_fluxes();
@@ -223,6 +222,7 @@ void node_server::static_initialize() {
 }
 
 void node_server::initialize(real t) {
+	grid_ptr = nullptr;
 	step_num = 0;
 	static_initialize();
 	global_timestep_channel = std::make_shared<channel<real>>();
@@ -322,6 +322,7 @@ integer node_server::regrid_gather() {
 			}
 			is_refined = true;
 			const integer flags = (my_location.level() == 0) ? GRID_IS_ROOT : 0;
+			grid_ptr = nullptr;
 			grid_ptr = std::make_shared < grid > (dx, xmin, flags);
 		}
 	}
@@ -384,6 +385,9 @@ void node_server::solve_gravity(bool ene, integer c) {
 }
 
 void node_server::compute_fmm(gsolve_type type, bool energy_account, integer gchannel) {
+
+//	if( my_location.level() == 3 ) printf( "0\n");
+
 	if (energy_account) {
 		grid_ptr->egas_to_etot();
 	}
@@ -411,35 +415,35 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, integer gch
 	} else {
 		m_out = grid_ptr->compute_multipoles(type);
 	}
-	hpx::future<void> parent_fut;
-	std::list<hpx::future<void>> child_futs;
 	if (my_location.level() != 0) {
-		parent_fut = parent.send_gravity_multipoles(std::move(m_out), my_location.get_child_index(), gchannel);
-	} else {
-		parent_fut = hpx::make_ready_future();
+		parent.send_gravity_multipoles(std::move(m_out), my_location.get_child_index(), gchannel);
 	}
 	grid_ptr->compute_interactions(type);
 
+//	if( my_location.level() == 3 ) printf( "1\n");
+
 	for (integer dim = 0; dim != NDIM; ++dim) {
-		std::list<hpx::future<void>> sib_futs;
 		for (integer si = 2 * dim; si != 2 * (dim + 1); ++si) {
 			if (!my_location.is_physical_boundary(si)) {
-				sib_futs.push_back(siblings[si].send_gravity_boundary(get_gravity_boundary(si), si ^ 1, gchannel));
-			} else {
-				sib_futs.push_back(hpx::make_ready_future());
+				siblings[si].send_gravity_boundary(get_gravity_boundary(si), si ^ 1, gchannel);
 			}
 		}
 		for (integer si = 2 * dim; si != 2 * (dim + 1); ++si) {
 			if (!my_location.is_physical_boundary(si)) {
-				const std::vector<real> tmp = sibling_gravity_channels[gchannel][si]->get();
-				set_gravity_boundary(std::move(tmp), si);
-				grid_ptr->compute_boundary_interactions(type, si);
+				const std::vector<real> tmp = this->sibling_gravity_channels[gchannel][si]->get();
+				this->set_gravity_boundary(std::move(tmp), si);
 			}
-		}
-		for (auto si = sib_futs.begin(); si != sib_futs.end(); ++si) {
-			si->get();
 		}
 	}
+	for (integer dim = 0; dim != NDIM; ++dim) {
+		for (integer si = 2 * dim; si != 2 * (dim + 1); ++si) {
+			if (!my_location.is_physical_boundary(si)) {
+				this->grid_ptr->compute_boundary_interactions(type, si);
+			}
+		}
+	}
+
+//	if( my_location.level() == 3 ) printf( "2\n");
 
 	expansion_pass_type l_in;
 	if (my_location.level() != 0) {
@@ -469,14 +473,14 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, integer gch
 					}
 				}
 			}
-			child_futs.push_back(children[ci].send_gravity_expansions(std::move(l_out), gchannel));
+			children[ci].send_gravity_expansions(std::move(l_out), gchannel);
 		}
 	}
-	parent_fut.get();
-	hpx::wait_all(child_futs.begin(), child_futs.end());
 
 	if (energy_account) {
 		grid_ptr->etot_to_egas();
 	}
+
+//	if( my_location.level() == 3 ) printf( "3\n");
 }
 

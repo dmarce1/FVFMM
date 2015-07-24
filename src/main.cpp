@@ -31,7 +31,6 @@ void node_server::start_run() {
 		double tstart = MPI_Wtime();
 #endif
 		if (t / output_dt >= output_cnt) {
-			output_done.get();
 			char* fname;
 
 			printf("--- begin checkpoint ---\n");
@@ -59,6 +58,7 @@ void node_server::start_run() {
 			if (asprintf(&fname, "X.%i.silo", int(output_cnt))) {
 			}
 			free(fname);
+			output_done.get();
 		}
 		real dt = step();
 #ifdef NDEBUG

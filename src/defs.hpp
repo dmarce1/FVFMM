@@ -27,9 +27,8 @@ enum gsolve_type {
 //#define OUTPUT_MULTIPLE_FILES
 
 
-#include <boost/serialization/serialization.hpp>
-#include <boost/serialization/vector.hpp>
-#include <boost/serialization/array.hpp>
+#include <hpx/runtime/serialization/serialize.hpp>
+#include <hpx/runtime/serialization/set.hpp>
 
 #if BOOST_VERSION<105700
 namespace boost {
@@ -47,14 +46,14 @@ void serialize(Archive & ar, std::array<T,N> & a, const unsigned int version)
 #endif
 
 
-const integer MAX_LEVEL = 2;
+const integer MAX_LEVEL = 4;
 enum boundary_type {OUTFLOW, REFLECT};
 
 const integer NDIM = 3;
 
 const integer HBW = 2;
 const integer GBW = 2;
-const integer INX = 8;
+const integer INX = 16;
 const integer HNX = 2 * HBW + INX;
 const integer GNX = 2 * GBW + INX;
 const integer HN3 = HNX * HNX * HNX;

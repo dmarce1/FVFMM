@@ -11,7 +11,7 @@
 #include "defs.hpp"
 #include "node_location.hpp"
 #include "taylor.hpp"
-#include <boost/mpi/packed_iarchive.hpp>
+//#include <boost/mpi/packed_iarchive.hpp>
 
 class node_server;
 
@@ -34,10 +34,10 @@ public:
 	//hpx::future<void> register_(const node_location&) const;
 	//hpx::future<void> unregister(const node_location&) const;
 	hpx::future<integer> regrid_gather() const;
-	hpx::future<void> send_hydro_boundary(const std::vector<real>, integer rk, integer face) const;
-	hpx::future<void> send_gravity_boundary(const std::vector<real>, integer face, integer) const;
-	hpx::future<void> send_gravity_multipoles(const multipole_pass_type&, integer ci, integer) const;
-	hpx::future<void> send_gravity_expansions(const expansion_pass_type&, integer) const;
+	hpx::future<void> send_hydro_boundary(const std::vector<real>&, integer rk, integer face) const;
+	void send_gravity_boundary(const std::vector<real>&, integer face, integer) const;
+	void send_gravity_multipoles(const multipole_pass_type&, integer ci, integer) const;
+	void send_gravity_expansions(const expansion_pass_type&, integer) const;
 	hpx::future<real> step() const;
 	hpx::future<void> start_run() const;
 	hpx::future<void> regrid() const;
