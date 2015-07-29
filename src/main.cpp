@@ -17,7 +17,7 @@ void node_server::start_run() {
 	printf("Starting...\n");
 	solve_gravity(false, 3);
 
-	double output_dt = 0.25;
+	double output_dt = 0.01;
 	integer output_cnt;
 
 	real& t = current_time;

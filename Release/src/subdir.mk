@@ -16,6 +16,7 @@ CPP_SRCS += \
 ../src/node_server_output.cpp \
 ../src/problem.cpp \
 ../src/roe.cpp \
+../src/stack_trace.cpp \
 ../src/taylor.cpp 
 
 OBJS += \
@@ -31,6 +32,7 @@ OBJS += \
 ./src/node_server_output.o \
 ./src/problem.o \
 ./src/roe.o \
+./src/stack_trace.o \
 ./src/taylor.o 
 
 CPP_DEPS += \
@@ -46,6 +48,7 @@ CPP_DEPS += \
 ./src/node_server_output.d \
 ./src/problem.d \
 ./src/roe.d \
+./src/stack_trace.d \
 ./src/taylor.d 
 
 

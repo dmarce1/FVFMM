@@ -66,6 +66,8 @@ std::vector<real> star(real x, real y, real z) {
 		u[egas_i] *= real(100);
 	}
 	u[tau_i] = std::pow(u[egas_i], (real(1) / real(fgamma)));
+	u[sx_i] = -DEFAULT_OMEGA * y * u[rho_i];
+	u[sy_i] = +DEFAULT_OMEGA * x* u[rho_i];
 	return u;
 }
 

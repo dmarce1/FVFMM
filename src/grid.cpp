@@ -9,6 +9,15 @@
 #include <cmath>
 #include <cassert>
 
+real grid::omega = DEFAULT_OMEGA;
+
+void grid::set_omega(real o) {
+	omega = o;
+}
+
+real grid::get_omega() {
+	return omega;
+}
 
 
 bool grid::refine_me(integer lev) const {
@@ -277,12 +286,16 @@ integer grid::get_step() const {
 real grid::compute_fluxes() {
 	real max_lambda = ZERO;
 	std::array<std::vector<real>, NF> ur, ul, f;
+	std::vector<space_vector> xr, xl;
 
+	const integer line_sz = HNX - 2 * HBW + 1;
 	for (integer field = 0; field != NF; ++field) {
-		ur[field].resize(HNX - 2 * HBW + 1);
-		ul[field].resize(HNX - 2 * HBW + 1);
-		f[field].resize(HNX - 2 * HBW + 1);
+		ur[field].resize(line_sz);
+		ul[field].resize(line_sz);
+		f[field].resize(line_sz);
 	}
+	xr.resize(line_sz);
+	xl.resize(line_sz);
 
 	for (integer dim = 0; dim != NDIM; ++dim) {
 
@@ -294,15 +307,19 @@ real grid::compute_fluxes() {
 
 		for (integer k = HBW; k != HNX - HBW; ++k) {
 			for (integer j = HBW; j != HNX - HBW; ++j) {
-				for (integer field = 0; field != NF; ++field) {
-					for (integer i = HBW; i != HNX - HBW + 1; ++i) {
-						const integer i0 = DN[dx_i] * i + DN[dy_i] * j + DN[dz_i] * k;
-						const integer im = i0 - DN[dx_i];
+				for (integer i = HBW; i != HNX - HBW + 1; ++i) {
+					const integer i0 = DN[dx_i] * i + DN[dy_i] * j + DN[dz_i] * k;
+					const integer im = i0 - DN[dx_i];
+					for (integer field = 0; field != NF; ++field) {
 						ur[field][i - HBW] = Uf[face_m][field][i0];
 						ul[field][i - HBW] = Uf[face_p][field][im];
 					}
+					for( integer d = 0; d != NDIM; ++d) {
+						xr[i - HBW][d] = X[d][i0];
+						xl[i - HBW][d] = X[d][im];
+					}
 				}
-				const real this_max_lambda = roe_fluxes(f, ul, ur, dim);
+				const real this_max_lambda = roe_fluxes(f, ul, ur, xl, xr, omega, dim);
 				max_lambda = std::max(max_lambda, this_max_lambda);
 				for (integer field = 0; field != NF; ++field) {
 					for (integer i = HBW; i != HNX - HBW + 1; ++i) {
@@ -416,6 +433,8 @@ void grid::compute_sources() {
 				src[sx_i][iii] = U[rho_i][iii] * G[gx_i][iii];
 				src[sy_i][iii] = U[rho_i][iii] * G[gy_i][iii];
 				src[sz_i][iii] = U[rho_i][iii] * G[gz_i][iii];
+				src[sx_i][iii] += omega * U[sy_i][iii];
+				src[sy_i][iii] -= omega * U[sx_i][iii];
 			}
 		}
 	}

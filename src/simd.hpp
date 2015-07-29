@@ -40,7 +40,7 @@ public:
 	inline simd_vector& operator=(const simd_vector& other) = default;
 	simd_vector& operator=(simd_vector&& other) {
 		for( integer i = 0; i != SIMD_SIZE; ++i ) {
-			v[i] = other.v[i];		
+			v[i] = std::move(other.v[i]);
 		}	
 		return *this;
 	}

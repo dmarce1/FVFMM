@@ -36,11 +36,14 @@ class grid {
 public:
 	typedef std::array<xpoint_type, NDIM> xpoint;
 	struct node_point;
+	static void set_omega(real o);
+	static real get_omega();
 private:
+	static real omega;
 
 	std::vector<std::vector<real>> U;
 	std::vector<std::vector<real>> U0;
-		std::vector<std::vector<real>> dUdt;
+	std::vector<std::vector<real>> dUdt;
 	std::vector<std::array<std::vector<real>, NF>> Uf;
 	std::vector<std::array<std::vector<real>, NF>> F;
 	std::vector<std::vector<real>> X;

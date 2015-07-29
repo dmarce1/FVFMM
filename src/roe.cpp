@@ -17,7 +17,7 @@ const integer sh1_i = sz_i;
 const integer sh2_i = egas_i;
 
 real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<real>, NF>& UL,
-		std::array<std::vector<real>, NF>& UR, integer dimension) {
+		std::array<std::vector<real>, NF>& UR,  const std::vector<space_vector>& XL, const std::vector<space_vector>& XR, real omega, integer dimension) {
 	const std::size_t sz = UL[0].size();
 	const integer u_i = vx_i + dimension;
 	const integer v_i = vx_i + (dimension == XDIM ? YDIM : XDIM);
@@ -28,15 +28,22 @@ real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<rea
 	for (std::size_t iii = 0; iii < sz; iii += simd_len) {
 		std::array<simd_vector, NF> ur;
 		std::array<simd_vector, NF> ul;
+		std::array<simd_vector, NDIM> vfr;
+		std::array<simd_vector, NDIM> vfl;
 		for (integer jjj = 0; jjj != simd_len; ++jjj) {
+			const integer index = std::min(integer(iii + jjj), integer(sz - 1));
 			for (integer field = 0; field != NF; ++field) {
-				const integer index = std::min(integer(iii + jjj), integer(sz - 1));
 				ur[field][jjj] = UR[field][index];
 				ul[field][jjj] = UL[field][index];
 			}
+			vfr[XDIM][jjj] = -omega * XR[index][YDIM];
+			vfr[YDIM][jjj] = +omega * XR[index][XDIM];
+			vfl[XDIM][jjj] = -omega * XL[index][YDIM];
+			vfl[YDIM][jjj] = +omega * XL[index][XDIM];
+			vfr[ZDIM][jjj] = vfl[ZDIM][jjj] = ZERO;
 		}
 		this_simd_len = std::min(integer(simd_len), integer(sz - iii));
-		const simd_vector v_r = ur[u_i] / ur[rho_i];
+		const simd_vector v_r = ur[u_i] / ur[rho_i] - vfr[u_i-vx_i];
 		simd_vector ei_r = ur[egas_i] - HALF * (ur[u_i] * ur[u_i] + ur[v_i] * ur[v_i] + ur[w_i] * ur[w_i]) / ur[rho_i];
 
 		for (integer j = 0; j != this_simd_len; ++j) {
@@ -48,7 +55,7 @@ real roe_fluxes(std::array<std::vector<real>, NF>& F, std::array<std::vector<rea
 		const simd_vector p_r = (fgamma - ONE) * ei_r;
 		const simd_vector c_r = sqrt(fgamma * p_r / ur[rho_i]);
 
-		const simd_vector v_l = ul[u_i] / ul[rho_i];
+		const simd_vector v_l = ul[u_i] / ul[rho_i] - vfl[u_i-vx_i];
 		simd_vector ei_l = ul[egas_i] - HALF * (ul[u_i] * ul[u_i] + ul[v_i] * ul[v_i] + ul[w_i] * ul[w_i]) / ul[rho_i];
 
 		for (integer j = 0; j != this_simd_len; ++j) {

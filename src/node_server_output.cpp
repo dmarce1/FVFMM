@@ -194,18 +194,23 @@ std::pair<integer,std::size_t> node_server::save(const std::string& filename) {
 			total_cnt += tmp.first;
 			bytes_written += tmp.second;
 		}
-		FILE* fp = fopen("size.tmp", "wb");
+		FILE* fp = fopen("size.tmp2", "wb");
 		bytes_written += 2 * fwrite( &total_cnt, sizeof(integer), 1, fp) * sizeof(integer);
-		std::size_t tmp = bytes_written + 2 * sizeof(std::size_t);
-		bytes_written += 2*fwrite( &tmp, sizeof(std::size_t), 1, fp)*sizeof(std::size_t);
+		std::size_t tmp = bytes_written + 2 * sizeof(std::size_t) + sizeof(real);
+		bytes_written += 2 * fwrite( &tmp, sizeof(std::size_t), 1, fp)*sizeof(std::size_t);
+		fclose( fp);
+		my_system( "cp size.tmp2 size.tmp1\n");
+		fp = fopen("size.tmp1", "ab");
+		real omega = grid::get_omega();
+		bytes_written += fwrite( &omega, sizeof(real), 1, fp) * sizeof(real);
 		fclose( fp);
 		std::string command = "rm -r -f " + filename + "\n";
 		my_system (command);
-		command = "cat size.tmp ";
+		command = "cat size.tmp1 ";
 			for( std::size_t i = 0; i != localities.size(); ++i ){
 			command += filename + "." + std::to_string(integer(i)) + " ";
 		}
-		command += "size.tmp > " + filename + "\n";
+		command += "size.tmp2 > " + filename + "\n";
 		my_system( command);
 		command = "rm -f -r " + filename + ".*\n";
 		my_system( command);
@@ -222,8 +227,11 @@ void node_server::load(const std::string& filename, node_client root) {
 	std::size_t bytes_expected;
 	std::size_t bytes_read = 0;
 	integer total_cnt;
+	real omega;
 	bytes_read += fread(&total_cnt, sizeof(integer), 1, fp)*sizeof(integer);
 	bytes_read += fread(&bytes_expected, sizeof(std::size_t), 1, fp)*sizeof(std::size_t);
+	bytes_read += fread(&omega, sizeof(real), 1, fp)*sizeof(real);
+	grid::set_omega(omega);
 	printf( "Loading %i subgrids...\n", int(total_cnt));
 	for( integer i = 0; i != total_cnt; ++i ) {
 		auto ns = std::make_shared<node_server>();

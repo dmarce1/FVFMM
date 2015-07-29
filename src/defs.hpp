@@ -48,7 +48,9 @@ void serialize(Archive & ar, std::array<T,N> & a, const unsigned int version)
 #endif
 
 
-const integer MAX_LEVEL = 4;
+const real DEFAULT_OMEGA = 0.1;
+
+const integer MAX_LEVEL = 2;
 enum boundary_type {OUTFLOW, REFLECT};
 
 const integer NDIM = 3;
