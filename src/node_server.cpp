@@ -28,8 +28,7 @@ typedef node_server::start_run_action start_run_action_type;
 typedef node_server::copy_to_locality_action copy_to_locality_action_type;
 typedef node_server::get_child_client_action get_child_client_action_type;
 typedef node_server::form_tree_action form_tree_action_type;
-typedef node_server::save_action save_action_type;
-typedef node_server::load_action load_action_type;
+typedef node_server::get_ptr_action get_ptr_action_type;
 
 HPX_REGISTER_ACTION (regrid_gather_action_type);
 HPX_REGISTER_ACTION (regrid_scatter_action_type);
@@ -44,8 +43,7 @@ HPX_REGISTER_ACTION (start_run_action_type);
 HPX_REGISTER_ACTION (copy_to_locality_action_type);
 HPX_REGISTER_ACTION (get_child_client_action_type);
 HPX_REGISTER_ACTION (form_tree_action_type);
-HPX_REGISTER_ACTION (save_action_type);
-HPX_REGISTER_ACTION (load_action_type);
+HPX_REGISTER_ACTION (get_ptr_action_type);
 
 integer node_server::local_node_count = 0;
 hpx::lcos::local::spinlock node_server::timestep_lock;
@@ -56,6 +54,22 @@ bool node_server::static_initialized(false);
 std::atomic<integer> node_server::static_initializing(0);
 std::list<const node_server*> node_server::local_node_list;
 hpx::lcos::local::spinlock node_server::local_node_list_lock;
+
+
+node_server* node_server::get_ptr() {
+	return this;
+}
+
+node_server::node_server(node_server&& other) {
+	*this = std::move(other);
+	{
+		boost::lock_guard<hpx::lcos::local::spinlock> lock(local_node_list_lock);
+		++local_node_count;
+		local_node_list.push_front(this);
+		my_list_iterator = local_node_list.begin();
+	}
+
+}
 
 
 void node_server::form_tree(const hpx::id_type& self_gid, const hpx::id_type& parent_gid,
@@ -89,6 +103,7 @@ hpx::id_type node_server::get_child_client(integer ci) {
 }
 
 hpx::future<hpx::id_type> node_server::copy_to_locality(const hpx::id_type& id) {
+
 	std::vector<hpx::id_type> cids;
 	if (is_refined) {
 		cids.resize(NCHILD);
@@ -222,7 +237,6 @@ void node_server::static_initialize() {
 }
 
 void node_server::initialize(real t) {
-	grid_ptr = nullptr;
 	step_num = 0;
 	static_initialize();
 	global_timestep_channel = std::make_shared<channel<real>>();
@@ -322,11 +336,33 @@ integer node_server::regrid_gather() {
 			}
 			is_refined = true;
 			const integer flags = (my_location.level() == 0) ? GRID_IS_ROOT : 0;
-			grid_ptr = nullptr;
 			grid_ptr = std::make_shared < grid > (dx, xmin, flags);
 		}
 	}
 	return count;
+}
+
+node_server& node_server::operator=( node_server&& other ) {
+
+	my_location = std::move(other.my_location);
+	step_num = std::move(other.step_num);
+	current_time = std::move(other.current_time);
+	grid_ptr  = std::move(other.grid_ptr);
+	is_refined = std::move(other.is_refined);
+	child_descendant_count = std::move(other.child_descendant_count);
+	xmin = std::move(other.xmin);
+	dx = std::move(other.dx);
+	me = std::move(other.me);
+	parent = std::move(other.parent);
+	siblings = std::move(other.siblings);
+	children = std::move(other.children);
+	sibling_hydro_channels = std::move(other.sibling_hydro_channels);
+	parent_gravity_channel = std::move(other.parent_gravity_channel);
+	sibling_gravity_channels = std::move(other.sibling_gravity_channels);
+	child_gravity_channels = std::move(other.child_gravity_channels);
+	global_timestep_channel = std::move(other.global_timestep_channel);
+
+	return *this;
 }
 
 void node_server::regrid() {
@@ -345,7 +381,11 @@ void node_server::regrid_scatter(integer a_, integer total) {
 			const integer loc_index = a * localities.size() / total;
 			const auto child_loc = localities[loc_index];
 			a += child_descendant_count[ci];
-			if (child_loc != hpx::find_here()) {
+			const hpx::naming::id_type id = children[ci].get_gid();
+			integer current_child_id = hpx::naming::get_locality_id_from_gid(id.get_gid());
+			auto current_child_loc = localities[current_child_id];
+			if (child_loc != current_child_loc) {
+				printf( "Moving %s from %i to %i\n", my_location.get_child(ci).to_str().c_str(), hpx::get_locality_id(), int(loc_index));
 				children[ci] = children[ci].copy_to_locality(child_loc);
 			}
 		}

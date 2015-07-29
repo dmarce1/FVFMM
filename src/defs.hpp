@@ -27,8 +27,10 @@ enum gsolve_type {
 //#define OUTPUT_MULTIPLE_FILES
 
 
-#include <hpx/runtime/serialization/serialize.hpp>
-#include <hpx/runtime/serialization/set.hpp>
+#include <boost/serialization/serialization.hpp>
+#include <boost/serialization/set.hpp>
+#include <boost/serialization/array.hpp>
+#include <boost/serialization/vector.hpp>
 
 #if BOOST_VERSION<105700
 namespace boost {

@@ -7,9 +7,12 @@
 
 #include "node_server.hpp"
 #include <mutex>
+#include <thread>
 
 HPX_PLAIN_ACTION(node_server::output_form, output_form_action);
 HPX_PLAIN_ACTION(node_server::output_collect, output_collect_action);
+
+HPX_REGISTER_PLAIN_ACTION( save_action);
 
 std::list<grid::output_list_type> node_server::olists;
 
@@ -118,78 +121,180 @@ grid::output_list_type node_server::output_collect(const std::string& filename) 
 
 
 
-void node_server::load_me( FILE* fp) {
+std::size_t node_server::load_me( FILE* fp, integer& locality_id) {
+	std::size_t cnt = 0;
 	auto foo = std::fread;
 
-	foo(&is_refined, sizeof(bool), 1, fp);
-	foo(&step_num, sizeof(integer), 1, fp);
-	foo(&current_time,sizeof(real), 1, fp);
-	foo(&dx, sizeof(real), 1,  fp);
-	foo(&(xmin[0]), sizeof(real), NDIM, fp);
+//cnt += foo(&is_refined, sizeof(bool), 1, fp)*sizeof(bool);
+	cnt += foo(&locality_id, sizeof(integer), 1, fp)*sizeof(integer);
+	cnt += foo(&step_num, sizeof(integer), 1, fp)*sizeof(integer);
+	cnt += foo(&current_time,sizeof(real), 1, fp)*sizeof(real);
+	cnt += foo(&dx, sizeof(real), 1,  fp)*sizeof(real);
+	cnt += foo(&(xmin[0]), sizeof(real), NDIM, fp)*sizeof(real);
 
-	my_location.load(fp);
-	grid_ptr->load(fp);
+	cnt += my_location.load(fp);
+	cnt += grid_ptr->load(fp);
+	return cnt;
 }
 
-void node_server::save_me( FILE* fp ) const {
+std::size_t node_server::save_me( FILE* fp ) const {
 	auto foo = std::fwrite;
+	std::size_t cnt = 0;
 
-	foo(&is_refined, sizeof(bool), 1, fp);
-	foo(&step_num, sizeof(integer), 1, fp);
-	foo(&current_time,sizeof(real), 1, fp);
-	foo(&dx, sizeof(real), 1, fp);
-	foo(&(xmin[0]), sizeof(real), NDIM, fp);
+//	cnt += foo(&is_refined, sizeof(bool), 1, fp)*sizeof(bool);
+	integer locality_id = hpx::get_locality_id();
+	cnt += foo(&locality_id, sizeof(integer), 1, fp)*sizeof(integer);
+	cnt += foo(&step_num, sizeof(integer), 1, fp)*sizeof(integer);
+	cnt += foo(&current_time,sizeof(real), 1, fp)*sizeof(real);
+	cnt += foo(&dx, sizeof(real), 1, fp)*sizeof(real);
+	cnt += foo(&(xmin[0]), sizeof(real), NDIM, fp)*sizeof(real);
 
-	my_location.save(fp);
-	grid_ptr->save(fp);
+	cnt += my_location.save(fp);
+	cnt += grid_ptr->save(fp);
+	return cnt;
 }
 
-void node_server::save(const std::string& filename) const {
-
-	if( my_location.level() == 0 ) {
-		char* str;
-		asprintf(&str, "rm %s\n", filename.c_str() );
-		system( str );
-		free( str);
+void my_system( const std::string& command) {
+//	printf( "Executing system command: %s\n", command.c_str());
+	if( system( command.c_str()) != EXIT_SUCCESS ) {
+		assert(false);
 	}
-	FILE* fp = fopen( filename.c_str(), "ab");
-	std::size_t locality_id = hpx::get_locality_id();
-	assert(fp);
-	fwrite(&locality_id, sizeof(std::size_t), 1, fp );
-	save_me(fp);
-	fclose(fp);
-	if (is_refined) {
-		for (integer ci = 0; ci != NCHILD; ++ci) {
-			children[ci].save(filename).get();
+}
+
+std::pair<integer,std::size_t> node_server::save(const std::string& filename) {
+	integer cnt = 0;
+	std::size_t bytes_written = 0;
+	std::list<hpx::future<std::pair<integer,std::size_t>>> save_futs;
+	const auto my_id = hpx::get_locality_id();
+	const auto localities = hpx::find_all_localities();
+	if( my_id == 0 ) {
+		for( auto i = localities.begin(); i != localities.end(); ++i) {
+			if( *i != hpx::find_here() ) {
+				save_futs.push_back(hpx::async<save_action>(*i, filename));
+			}
 		}
 	}
+
+	std::string this_name = filename + "." + std::to_string(integer(my_id));
+	FILE* fp = fopen(this_name.c_str(), "wb");
+	{
+		std::lock_guard<hpx::lcos::local::spinlock> lock(local_node_list_lock);
+		for (auto i = local_node_list.begin(); i != local_node_list.end(); ++i) {
+//			printf( "Saving at %s\n",(*i)->my_location.to_str().c_str());
+			bytes_written += (*i)->my_location.save(fp);
+			bytes_written += (*i)->save_me(fp);
+			++cnt;
+		}
+	}
+	fclose(fp);
+	std::size_t total_cnt = cnt;
+	if( my_id == 0 ) {
+		for( auto i = save_futs.begin(); i != save_futs.end(); ++i) {
+			auto tmp =  i->get();
+			total_cnt += tmp.first;
+			bytes_written += tmp.second;
+		}
+		FILE* fp = fopen("size.tmp", "wb");
+		bytes_written += 2 * fwrite( &total_cnt, sizeof(integer), 1, fp) * sizeof(integer);
+		std::size_t tmp = bytes_written + 2 * sizeof(std::size_t);
+		bytes_written += 2*fwrite( &tmp, sizeof(std::size_t), 1, fp)*sizeof(std::size_t);
+		fclose( fp);
+		std::string command = "rm -r -f " + filename + "\n";
+		my_system (command);
+		command = "cat size.tmp ";
+			for( std::size_t i = 0; i != localities.size(); ++i ){
+			command += filename + "." + std::to_string(integer(i)) + " ";
+		}
+		command += "size.tmp > " + filename + "\n";
+		my_system( command);
+		command = "rm -f -r " + filename + ".*\n";
+		my_system( command);
+		my_system( "rm -r -f size.tmp\n");
+		printf( "Saved %i sub-grids with %lli bytes written\n", int(total_cnt), (long long)(bytes_written));
+
+	}
+	return std::make_pair(total_cnt, bytes_written);
 }
 
-std::size_t node_server::load(const std::string& filename, std::size_t sz) {
-
-	printf( "Loading from locality %i\n", hpx::get_locality_id());
+void node_server::load(const std::string& filename, node_client root) {
 	FILE* fp = fopen( filename.c_str(), "rb");
-	assert(fp);
-	fseek(fp, sz, SEEK_SET );
-	fseek(fp, sizeof(std::size_t), SEEK_CUR );
-	std::size_t index;
-	load_me(fp);
-	std::size_t pos = ftell(fp);
+	integer cnt = 0;
+	std::size_t bytes_expected;
+	std::size_t bytes_read = 0;
+	integer total_cnt;
+	bytes_read += fread(&total_cnt, sizeof(integer), 1, fp)*sizeof(integer);
+	bytes_read += fread(&bytes_expected, sizeof(std::size_t), 1, fp)*sizeof(std::size_t);
+	printf( "Loading %i subgrids...\n", int(total_cnt));
+	for( integer i = 0; i != total_cnt; ++i ) {
+		auto ns = std::make_shared<node_server>();
+		node_location next_loc;
+		bytes_read += next_loc.load(fp);
+		std::size_t file_pos = bytes_read;
+		integer dummy;
+		bytes_read += ns->load_me(fp, dummy);
+//		printf( "Loading at %s\n", next_loc.to_str().c_str());
+		root.load_node(file_pos, filename,  next_loc, root.get_gid()).get();
+		++cnt;
+	}
+	std::size_t bytes_check;
+	integer ngrid_check;
+	bytes_read += fread(&ngrid_check, sizeof(integer), 1, fp)*sizeof(integer);
+	bytes_read += fread(&bytes_check, sizeof(std::size_t), 1, fp)*sizeof(std::size_t);
 	fclose(fp);
-	if (is_refined) {
-		children.resize(NCHILD);
-		auto localities = hpx::find_all_localities();
-		for (integer ci = 0; ci != NCHILD; ++ci) {
-			fp = fopen( filename.c_str(), "rb");
-			fseek(fp, pos, SEEK_SET);
-			fread(&index, sizeof(std::size_t), 1, fp );
-			fclose(fp);
-			printf( "Index = %i\n", index);
-			auto fut = hpx::new_<node_server>(localities[index]);
-			children[ci] = fut.get();
-			pos = children[ci].load(filename, pos).get();
+	if( bytes_expected != bytes_read || bytes_expected != bytes_check || ngrid_check != cnt ) {
+		printf( "Checkpoint file corrupt\n");
+		printf( "Bytes read        = %lli\n", (long long) bytes_read);
+		printf( "Bytes expected    = %lli\n", (long long) bytes_expected);
+		printf( "Bytes end         = %lli\n", (long long) bytes_check);
+		printf( "subgrids expected = %i\n", (int) total_cnt);
+		printf( "subgrids end      = %i\n", (int) ngrid_check);
+		abort();
+	} else {
+		printf( "--------Loaded: %i subgrids, %lli bytes read----------\n",int(cnt), (long long)(bytes_read));
+	}
+}
+
+
+
+hpx::id_type node_server::load_node(std::size_t filepos, const std::string& fname, const node_location& loc, const hpx::id_type& _me) {
+	me = _me;
+	hpx::future<hpx::id_type> rc;
+	if( loc == my_location) {
+		integer locality_id;
+		FILE* fp = fopen( fname.c_str(), "rb");
+		fseek(fp, filepos, SEEK_SET);
+		load_me(fp, locality_id);
+		fclose(fp);
+		if( locality_id != hpx::get_locality_id()) {
+			const auto localities = hpx::find_all_localities();
+			printf( "Moving %s from %i to %i\n", loc.to_str().c_str(), hpx::get_locality_id(), int(locality_id));
+			rc =  me.copy_to_locality(localities[locality_id]);
+		} else {
+			rc = hpx::make_ready_future(me.get_gid());
+		}
+	} else {
+		rc = hpx::make_ready_future(me.get_gid());
+		if( !is_refined) {
+			if( my_location.level() >= MAX_LEVEL) {
+				abort();
+			}
+			children.resize(NCHILD);
+			for (integer ci = 0; ci != NCHILD; ++ci) {
+				children[ci] = hpx::new_<node_server>(hpx::find_here(), my_location.get_child(ci), me, ZERO);
+			}
+			is_refined = true;
+			const integer flags = (my_location.level() == 0) ? GRID_IS_ROOT : 0;
+			grid_ptr = std::make_shared < grid > (dx, xmin, flags);
+		}
+		for( integer ci = 0; ci != NCHILD; ++ci) {
+			auto cloc =  my_location.get_child(ci);
+			if( cloc == loc || loc.is_child_of(cloc)) {
+				children[ci] = children[ci].load_node(filepos, fname, loc, children[ci].get_gid());
+			}
 		}
 	}
-	return pos;
+	clear_family();
+	return rc.get();
+
 }
 

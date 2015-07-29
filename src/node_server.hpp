@@ -33,6 +33,11 @@ private:
 	std::vector<node_client> siblings;
 	std::vector<node_client> children;
 public:
+	real get_time() const {
+		return current_time;
+	}
+	node_server& operator=( node_server&& );
+
 	template<class Archive>
 	void serialize(Archive& arc, unsigned) {
 		arc & my_location;
@@ -46,16 +51,15 @@ public:
 
 
 
-	void save(const std::string& filename) const;
-	HPX_DEFINE_COMPONENT_ACTION(node_server, save, save_action);
+	static std::pair<integer,std::size_t> save(const std::string& filename);
 
-	std::size_t load(const std::string& filename, std::size_t sz);
-	HPX_DEFINE_COMPONENT_ACTION(node_server, load, load_action);
+	static void load(const std::string& filename, node_client root);
 
 	node_server(node_location&&, integer, bool, real, std::array<integer,NCHILD>&&, grid&&, const std::vector<hpx::id_type>&);
+	node_server(node_server&& other);
 
-	void load_me( FILE* fp);
-	void save_me( FILE* fp ) const;
+	std::size_t load_me( FILE* fp, integer&);
+	std::size_t save_me( FILE* fp ) const;
 private:
 	std::array<std::array<std::shared_ptr<channel<std::vector<real>>> ,NFACE>,NRK> sibling_hydro_channels;
 	std::array<std::shared_ptr<channel<expansion_pass_type>>,4> parent_gravity_channel;
@@ -98,7 +102,6 @@ public:
 	node_server();
 	~node_server();
 	node_server( const node_server& other);
-	node_server( node_server&& other);
 	node_server(const node_location&, const node_client& parent_id, real);
 	integer get_boundary_size(std::array<integer, NDIM>&, std::array<integer, NDIM>&, integer,
 			integer) const;
@@ -149,9 +152,15 @@ public:
 	std::vector<hpx::shared_future<hpx::id_type>> get_sibling_clients( integer ci);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, get_sibling_clients, get_sibling_clients_action);
 
+
 	void form_tree(const hpx::id_type&, const hpx::id_type&, const std::vector<hpx::shared_future<hpx::id_type>>& );
 	HPX_DEFINE_COMPONENT_ACTION(node_server, form_tree, form_tree_action);
 
+	hpx::id_type load_node( std::size_t, const std::string&, const node_location&, const hpx::id_type& );
+	HPX_DEFINE_COMPONENT_ACTION(node_server, load_node, load_node_action);
+
+	node_server* get_ptr();
+	HPX_DEFINE_COMPONENT_ACTION(node_server, get_ptr, get_ptr_action);
 };
 
 
@@ -168,7 +177,8 @@ HPX_REGISTER_ACTION_DECLARATION( node_server::start_run_action);
 HPX_REGISTER_ACTION_DECLARATION( node_server::copy_to_locality_action);
 HPX_REGISTER_ACTION_DECLARATION( node_server::get_child_client_action);
 HPX_REGISTER_ACTION_DECLARATION( node_server::form_tree_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::save_action);
-HPX_REGISTER_ACTION_DECLARATION( node_server::load_action);
+HPX_REGISTER_ACTION_DECLARATION( node_server::get_ptr_action);
+
+HPX_DEFINE_PLAIN_ACTION(node_server::save, save_action);
 
 #endif /* NODE_SERVER_HPP_ */

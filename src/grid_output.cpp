@@ -38,8 +38,6 @@ bool grid::node_point::operator<(const node_point& other) const {
 
 void grid::merge_output_lists(grid::output_list_type& l1, grid::output_list_type& l2) {
 
-	hpx::this_thread::yield();
-
 	std::unordered_map < zone_int_type, zone_int_type > index_map;
 
 	if (l2.zones.size() > l1.zones.size()) {
@@ -131,7 +129,7 @@ grid::output_list_type grid::get_output_list() const {
 void grid::output(const output_list_type& olists, const char* filename) {
 
 	std::thread(
-			[=]() {
+			[&]() {
 				const std::set<node_point>& node_list = olists.nodes;
 				const std::vector<zone_int_type>& zone_list = olists.zones;
 
@@ -175,48 +173,52 @@ void grid::output(const output_list_type& olists, const char* filename) {
 
 
 
-void grid::load(FILE* fp) {
+std::size_t grid::load(FILE* fp) {
+	std::size_t cnt = 0;
 	auto foo = std::fread;
-	foo(&is_leaf, sizeof(bool), 1, fp );
-	foo(&is_root, sizeof(bool), 1, fp );
-	foo(&dx, sizeof(real), 1, fp );
-	foo(&t, sizeof(real), 1, fp );
-	foo(&step_num, sizeof(integer), 1, fp );
-	foo(&(xmin[0]), sizeof(real), NDIM, fp );
+	cnt += foo(&is_leaf, sizeof(bool), 1, fp )*sizeof(bool);
+	cnt += foo(&is_root, sizeof(bool), 1, fp )*sizeof(bool);
+	cnt += foo(&dx, sizeof(real), 1, fp )*sizeof(real);
+	cnt += foo(&t, sizeof(real), 1, fp )*sizeof(real);
+	cnt += foo(&step_num, sizeof(integer), 1, fp )*sizeof(integer);
+	cnt += foo(&(xmin[0]), sizeof(real), NDIM, fp )*sizeof(real);
 
 	allocate();
 
 	for( integer f = 0; f != NF; ++f) {
-		foo(U[f].data(), sizeof(real), U[f].size(), fp);
+		cnt += foo(U[f].data(), sizeof(real), U[f].size(), fp)*sizeof(real);
 	}
 	for( integer f = 0; f != NDIM; ++f) {
-		foo(S[f].data(), sizeof(real), S[f].size(), fp);
+		cnt += foo(S[f].data(), sizeof(real), S[f].size(), fp)*sizeof(real);
 	}
 	for( integer f = 0; f != 4; ++f) {
-		foo(G[f].data(), sizeof(real), G[f].size(), fp);
+		cnt += foo(G[f].data(), sizeof(real), G[f].size(), fp)*sizeof(real);
 	}
-	foo(U_out.data(), sizeof(real), U_out.size(), fp);
-	foo(S_out.data(), sizeof(real), S_out.size(), fp);
+	cnt += foo(U_out.data(), sizeof(real), U_out.size(), fp)*sizeof(real);
+	cnt += foo(S_out.data(), sizeof(real), S_out.size(), fp)*sizeof(real);
+	return cnt;
 }
 
-void grid::save(FILE* fp) const {
+std::size_t grid::save(FILE* fp) const {
+	std::size_t cnt = 0;
 	auto foo = std::fwrite;
-	foo(&is_leaf, sizeof(bool), 1, fp );
-	foo(&is_root, sizeof(bool), 1, fp );
-	foo(&dx, sizeof(real), 1, fp );
-	foo(&t, sizeof(real), 1, fp );
-	foo(&step_num, sizeof(integer), 1, fp );
-	foo(&(xmin[0]), sizeof(real), NDIM, fp );
+	cnt += foo(&is_leaf, sizeof(bool), 1, fp )*sizeof(bool);
+	cnt += foo(&is_root, sizeof(bool), 1, fp )*sizeof(bool);
+	cnt += foo(&dx, sizeof(real), 1, fp )*sizeof(real);
+	cnt += foo(&t, sizeof(real), 1, fp )*sizeof(real);
+	cnt += foo(&step_num, sizeof(integer), 1, fp )*sizeof(integer);
+	cnt += foo(&(xmin[0]), sizeof(real), NDIM, fp )*sizeof(real);
 	for( integer f = 0; f != NF; ++f) {
-		foo(U[f].data(), sizeof(real), U[f].size(), fp);
+		cnt += foo(U[f].data(), sizeof(real), U[f].size(), fp)*sizeof(real);
 	}
 	for( integer f = 0; f != NDIM; ++f) {
-		foo(S[f].data(), sizeof(real), S[f].size(), fp);
+		cnt += foo(S[f].data(), sizeof(real), S[f].size(), fp)*sizeof(real);
 	}
 	for( integer f = 0; f != 4; ++f) {
-		foo(G[f].data(), sizeof(real), G[f].size(), fp);
+		cnt += foo(G[f].data(), sizeof(real), G[f].size(), fp)*sizeof(real);
 	}
-	foo(U_out.data(), sizeof(real), U_out.size(), fp);
-	foo(S_out.data(), sizeof(real), S_out.size(), fp);
+	cnt += foo(U_out.data(), sizeof(real), U_out.size(), fp)*sizeof(real);
+	cnt += foo(S_out.data(), sizeof(real), S_out.size(), fp)*sizeof(real);
+	return cnt;
 }
 

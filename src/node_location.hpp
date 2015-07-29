@@ -48,16 +48,10 @@ public:
 		arc & xloc;
 	}
 
-	void load(FILE* fp) {
-		fread(&lev, sizeof(integer), 1, fp);
-		fread(xloc.data(), sizeof(integer), NDIM, fp);
-	}
+	std::size_t load(FILE* fp);
+	std::size_t save(FILE* fp) const;
 
-	void save(FILE* fp) const {
-		fwrite(&lev, sizeof(integer), 1, fp);
-		fwrite(xloc.data(), sizeof(integer), NDIM, fp);
-	}
-
+	bool is_child_of(const node_location& other) const;
 };
 
 #endif /* NODE_LOCATION_HPP_ */

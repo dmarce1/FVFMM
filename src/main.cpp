@@ -18,25 +18,28 @@ void node_server::start_run() {
 	solve_gravity(false, 3);
 
 	double output_dt = 0.25;
-	integer output_cnt = 0;
+	integer output_cnt;
 
 	real& t = current_time;
 	integer step_num = 0;
 
-	hpx::future<void> output_done = hpx::make_ready_future();
+	node_server* root_ptr = me.get_ptr().get();
 
+	hpx::future<void> output_done = hpx::make_ready_future();
+	output_cnt = root_ptr->get_time() / output_dt;
 	while (true) {
 
 #ifdef NDEBUG
 		double tstart = MPI_Wtime();
 #endif
 		if (t / output_dt >= output_cnt) {
+			output_done.get();
 			char* fname;
 
 			printf("--- begin checkpoint ---\n");
 			if (asprintf(&fname, "X.%i.chk", int(output_cnt))) {
 			}
-			save(fname);
+			save_action()(hpx::find_all_localities()[0], fname);
 			printf("--- end checkpoint ---\n");
 			free(fname);
 
@@ -58,7 +61,6 @@ void node_server::start_run() {
 			if (asprintf(&fname, "X.%i.silo", int(output_cnt))) {
 			}
 			free(fname);
-			output_done.get();
 		}
 		real dt = step();
 #ifdef NDEBUG
@@ -89,7 +91,8 @@ int hpx_main(int argc, char* argv[]) {
 	} else {
 		std::string fname(argv[1]);
 		printf( "Loading from %s...\n", fname.c_str());
-			root_client.load(argv[1], 0).get();
+		root_client.get_ptr().get()->load(fname, root_client);
+		root_client.regrid().get();
 		printf( "Done. \n");
 	}
 

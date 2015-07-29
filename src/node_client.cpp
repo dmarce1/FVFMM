@@ -8,13 +8,6 @@
 #include "node_server.hpp"
 //#include <boost/serialization/list.hpp>
 
-hpx::future<std::size_t> node_client::load(const std::string& filename, std::size_t sz) const {
-	return hpx::async<typename node_server::load_action>(get_gid(), filename, sz);
-}
-
-hpx::future<void> node_client::save(const std::string& filename) const {
-	return hpx::async<typename node_server::save_action>(get_gid(), filename);
-}
 
 hpx::future<void> node_client::form_tree(const hpx::id_type& id1, const hpx::id_type& id2,
 		const std::vector<hpx::shared_future<hpx::id_type>>& ids) {
@@ -24,6 +17,14 @@ hpx::future<hpx::id_type> node_client::copy_to_locality(const hpx::id_type& id) 
 	return hpx::async<typename node_server::copy_to_locality_action>(get_gid(), id);
 }
 
+hpx::future<hpx::id_type> node_client::load_node(std::size_t filepos, const std::string& fname, const node_location& loc, const hpx::id_type& id ) {
+	return hpx::async<typename node_server::load_node_action>(get_gid(),filepos, fname, loc, id);
+}
+
+
+hpx::future<node_server*> node_client::get_ptr() const	{
+	return hpx::async<typename node_server::get_ptr_action>(get_gid());
+}
 
 node_client::node_client(const hpx::id_type& id) :
 		base_type(id) {

@@ -154,7 +154,7 @@ void grid::allocate() {
 
 }
 
-grid::grid() : U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), S0(NDIM), S(NDIM), src(NF), ilist_d_bnd(NFACE),ilist_n_bnd(NFACE)
+grid::grid() : U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), S0(NDIM), S(NDIM), src(NF), ilist_d_bnd(NFACE), ilist_n_bnd(NFACE)
 {
 }
 

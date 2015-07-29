@@ -18,8 +18,41 @@
 #include "node_location.hpp"
 #include "node_client.hpp"
 
+
+	std::size_t node_location::load(FILE* fp) {
+		std::size_t cnt = 0;
+		cnt += fread(&lev, sizeof(integer), 1, fp)*sizeof(integer);
+		cnt += fread(xloc.data(), sizeof(integer), NDIM, fp)*sizeof(integer);
+		return cnt;
+	}
+
+	std::size_t node_location::save(FILE* fp) const {
+		std::size_t cnt = 0;
+		cnt += fwrite(&lev, sizeof(integer), 1, fp)*sizeof(integer);
+		cnt += fwrite(xloc.data(), sizeof(integer), NDIM, fp)*sizeof(integer);
+		return cnt;
+	}
+
+
 integer node_location::get_child_index() const {
 	return ((xloc[XDIM] & 1) + (2 * (xloc[YDIM] & 1)) + (4 * (xloc[ZDIM] & 1)));
+}
+
+bool node_location::is_child_of(const node_location& other) const {
+	bool rc;
+	if( other.lev < lev ){
+		rc = true;
+		for( integer d = 0; d != NDIM; ++d) {
+			if( (xloc[d] >> (lev - other.lev)) != other.xloc[d])  {
+				rc = false;
+				break;
+			}
+		}
+
+	} else {
+		rc = false;
+	}
+	return rc;
 }
 
 real node_location::x_location(integer d) const {
@@ -100,7 +133,7 @@ bool node_location::operator==(const node_location& other) const {
 		rc = false;
 	} else {
 		for (integer d = 0; d != NDIM; ++d) {
-			if (lev != other.lev) {
+			if (xloc[d] != other.xloc[d]) {
 				rc = false;
 				break;
 			}
