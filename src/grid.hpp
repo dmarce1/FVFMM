@@ -104,6 +104,9 @@ public:
 
 	void diagnostics();
 	std::vector<real> conserved_sums() const;
+	std::vector<real> s_sums() const;
+	std::vector<real> l_sums() const;
+	std::vector<real> conserved_outflows() const;
 	grid(const std::function<std::vector<real>(real, real, real)>&, real dx, std::array<real, NDIM> xmin,
 			integer flags);
 	grid(real dx, std::array<real, NDIM>, integer flags);
@@ -176,7 +179,7 @@ public:
 	struct grid::output_list_type {
 		std::set<node_point> nodes;
 		std::vector<zone_int_type> zones;
-		std::array<std::vector<real>, NF + NGF> data;
+		std::array<std::vector<real>, NF + NGF + NDIM> data;
 		template<class Arc>
 		void serialize(Arc& arc, unsigned int) {
 			arc & nodes;

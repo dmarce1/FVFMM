@@ -18,6 +18,39 @@
 const integer INNER = 0;
 const integer OUTER = 1;
 
+struct diagnostics_t {
+	std::vector<real> grid_sum;
+	std::vector<real> outflow_sum;
+	std::vector<real> l_sum;
+	std::vector<real> s_sum;
+	diagnostics_t() : grid_sum(NF,ZERO), outflow_sum(NF,ZERO), l_sum(NDIM), s_sum(NDIM){}
+	diagnostics_t& operator+=(const diagnostics_t& other) {
+		for( integer f = 0; f != NF; ++f) {
+			grid_sum[f] += other.grid_sum[f];
+			outflow_sum[f] += other.outflow_sum[f];
+		}
+		for( integer d = 0; d != NDIM; ++d) {
+			l_sum[d] += other.l_sum[d];
+			s_sum[d] += other.s_sum[d];
+		}
+		return *this;
+	}
+	diagnostics_t& operator=(const diagnostics_t& other) {
+			grid_sum = other.grid_sum;
+			outflow_sum = other.outflow_sum;
+			s_sum = other.s_sum;
+			l_sum = other.l_sum;
+			return *this;
+	};
+	template<class Arc>
+	void serialize( Arc& arc, const unsigned ) {
+		arc & grid_sum;
+		arc & outflow_sum;
+		arc & l_sum;
+		arc & s_sum;
+	}
+};
+
 class node_server: public hpx::components::simple_component_base<node_server> {
 private:
 	node_location my_location;
@@ -162,8 +195,8 @@ public:
 	node_server* get_ptr();
 	HPX_DEFINE_COMPONENT_ACTION(node_server, get_ptr, get_ptr_action);
 
-	std::vector<real> conserved_sums() const;
-	HPX_DEFINE_COMPONENT_ACTION(node_server, conserved_sums, conserved_sums_action);
+	diagnostics_t diagnostics() const;
+	HPX_DEFINE_COMPONENT_ACTION(node_server, diagnostics, diagnostics_action);
 
 };
 
@@ -182,6 +215,7 @@ HPX_REGISTER_ACTION_DECLARATION( node_server::copy_to_locality_action);
 HPX_REGISTER_ACTION_DECLARATION( node_server::get_child_client_action);
 HPX_REGISTER_ACTION_DECLARATION( node_server::form_tree_action);
 HPX_REGISTER_ACTION_DECLARATION( node_server::get_ptr_action);
+HPX_REGISTER_ACTION_DECLARATION( node_server::diagnostics_action);
 
 HPX_DEFINE_PLAIN_ACTION(node_server::save, save_action);
 

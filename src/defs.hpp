@@ -118,7 +118,7 @@ const integer gy_i = 2;
 const integer gz_i = 3;
 
 
-const std::array<boundary_type, NFACE> boundary_types = {REFLECT, REFLECT, REFLECT, REFLECT, REFLECT, REFLECT};
+const std::array<boundary_type, NFACE> boundary_types = {OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW, OUTFLOW};
 
 
 #endif /* TYPES_HPP_ */

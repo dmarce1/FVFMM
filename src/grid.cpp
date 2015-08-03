@@ -32,6 +32,55 @@ std::vector<real> grid::conserved_sums() const {
 	return sum;
 }
 
+std::vector<real> grid::s_sums() const {
+	std::vector<real> sum(NDIM);
+	const real dV = dx*dx*dx;
+	std::fill(sum.begin(), sum.end(), ZERO);
+	for( integer i = HBW; i != HNX - HBW; ++i) {
+		for( integer j= HBW; j != HNX -HBW; ++j) {
+			for( integer k = HBW; k != HNX - HBW; ++k) {
+				const integer iii = i * DNX + j * DNY + k * DNZ;
+				for( integer d = 0; d != NDIM; ++d ) {
+					sum[d] += S[d][iii] * dV;
+				}
+			}
+		}
+	}
+	for( integer d = 0; d != NDIM; ++d) {
+		sum[d] -= S_out[d];
+	}
+	return sum;
+}
+
+std::vector<real> grid::l_sums() const {
+	std::vector<real> sum(NDIM);
+	const real dV = dx*dx*dx;
+	std::fill(sum.begin(), sum.end(), ZERO);
+	for( integer i = HBW; i != HNX - HBW; ++i) {
+		for( integer j= HBW; j != HNX -HBW; ++j) {
+			for( integer k = HBW; k != HNX - HBW; ++k) {
+				const integer iii = i * DNX + j * DNY + k * DNZ;
+				sum[XDIM] += X[YDIM][iii] * U[sz_i][iii] * dV;
+				sum[XDIM] -= X[ZDIM][iii] * U[sy_i][iii] * dV;
+
+				sum[YDIM] -= X[XDIM][iii] * U[sz_i][iii] * dV;
+				sum[YDIM] += X[ZDIM][iii] * U[sx_i][iii] * dV;
+
+				sum[ZDIM] += X[XDIM][iii] * U[sy_i][iii] * dV;
+				sum[ZDIM] -= X[YDIM][iii] * U[sx_i][iii] * dV;
+
+			}
+		}
+	}
+	return sum;
+}
+
+std::vector<real> grid::conserved_outflows() const {
+	auto Uret = U_out;
+	Uret[egas_i] += Uret[pot_i];
+	return Uret;
+}
+
 void grid::set_omega(real o) {
 	omega = o;
 }
@@ -251,7 +300,7 @@ void grid::reconstruct() {
 		const real lz_sum = slpx[sy_i][iii] + slpy[sx_i][iii];
 		const real lx_dif = +S[XDIM][iii] / U[rho_i][iii] / dx;
 		const real ly_dif = -S[YDIM][iii] / U[rho_i][iii] / dx;
-		const real lz_dif = +S[ZDIM][iii] / U[rho_i][iii] / dx;
+		const real lz_dif = +S[ZDIM][iii] / U[rho_i][iii] / dx/* - omega * dx*/;
 		slpx[sy_i][iii] = (lz_sum + lz_dif) * HALF;
 		slpy[sx_i][iii] = (lz_sum - lz_dif) * HALF;
 		slpx[sz_i][iii] = (ly_sum + ly_dif) * HALF;
@@ -443,11 +492,30 @@ void grid::set_physical_boundaries(integer face) {
 	const integer dnk = DN[face / 2];
 	const integer klb = face % 2 == 0 ? 0 : HNX - HBW;
 	const integer kub = face % 2 == 0 ? HBW : HNX;
+	const integer klb2 = face % 2 == 0 ? 0 : HNX - 2*HBW;
+	const integer kub2 = face % 2 == 0 ? 2*HBW : HNX;
+	for (integer k = klb2; k != kub2; ++k) {
+		for (integer j = HBW; j != HNX - HBW; ++j) {
+			for (integer i = HBW; i != HNX - HBW; ++i) {
+				const integer iii = i * dni + j * dnj + k * dnk;
+				U[sx_i][iii] += omega * X[YDIM][iii] * U[rho_i][iii];
+				U[sy_i][iii] -= omega * X[XDIM][iii] * U[rho_i][iii];
+			}
+		}
+	}
 	for (integer field = 0; field != NF; ++field) {
 		for (integer k = klb; k != kub; ++k) {
 			for (integer j = HBW; j != HNX - HBW; ++j) {
 				for (integer i = HBW; i != HNX - HBW; ++i) {
-					const integer k0 = face % 2 == 0 ? (2 * HBW - k - 1) : (2 * (HNX - HBW) - k - 1);
+					integer k0;
+					switch( boundary_types[face] == REFLECT) {
+					case REFLECT:
+						 k0	= face % 2 == 0 ? (2 * HBW - k - 1) : (2 * (HNX - HBW) - k - 1);
+						break;
+					case OUTFLOW:
+						 k0	= face % 2 == 0 ? HBW : HNX - HBW - 1;
+						break;
+					}
 					const real value = U[field][i * dni + j * dnj + k0 * dnk];
 					real& ref = U[field][i * dni + j * dnj + k * dnk];
 					if (field != sx_i + face / 2) {
@@ -470,6 +538,15 @@ void grid::set_physical_boundaries(integer face) {
 			}
 		}
 	}
+	for (integer k = klb2; k != kub2; ++k) {
+		for (integer j = HBW; j != HNX - HBW; ++j) {
+			for (integer i = HBW; i != HNX - HBW; ++i) {
+				const integer iii = i * dni + j * dnj + k * dnk;
+				U[sx_i][iii] -= omega * X[YDIM][iii] * U[rho_i][iii];
+				U[sy_i][iii] += omega * X[XDIM][iii] * U[rho_i][iii];
+			}
+		}
+	}
 }
 
 void grid::compute_sources() {
@@ -486,6 +563,9 @@ void grid::compute_sources() {
 				src[sz_i][iii] = U[rho_i][iii] * G[gz_i][iii];
 				src[sx_i][iii] += omega * U[sy_i][iii];
 				src[sy_i][iii] -= omega * U[sx_i][iii];
+
+
+
 				src[egas_i][iii] -= omega * X[YDIM][iii] * U[rho_i][iii] * G[gx_i][iii];
 				src[egas_i][iii] += omega * X[XDIM][iii] * U[rho_i][iii] * G[gy_i][iii];
 			}
@@ -582,6 +662,11 @@ void grid::next_u(integer rk, real dt) {
 				const integer iii = DNX * i + DNY * j + DNZ * k;
 				real d = (-(F[XDIM][sy_i][iii + DNX] + F[XDIM][sy_i][iii])
 						+ (F[YDIM][sx_i][iii + DNY] + F[YDIM][sx_i][iii])) * HALF;
+		//		d -= dUdt[rho_i][iii] * omega * X[YDIM][iii] * dx;
+		//		d += dUdt[rho_i][iii] * omega * X[XDIM][iii] * dx;
+		//		d += omega * U[sy_i][iii] * dx;
+		//		d -= omega * U[sx_i][iii] * dx;
+
 				const real s1z = S[ZDIM][iii] + d * dt;
 				S[ZDIM][iii] = (ONE - rk_beta[rk]) * S0[ZDIM][iii] + rk_beta[rk] * s1z;
 			}
@@ -590,6 +675,10 @@ void grid::next_u(integer rk, real dt) {
 
 	std::vector<real> du_out(NF, ZERO);
 	std::vector<real> ds_out(NF, ZERO);
+
+	du_out[sx_i] += omega * U_out[sy_i] * dt;
+	du_out[sy_i] -= omega * U_out[sx_i] * dt;
+
 
 	for (integer i = HBW; i != HNX - HBW; ++i) {
 		for (integer j = HBW; j != HNX - HBW; ++j) {
@@ -610,6 +699,7 @@ void grid::next_u(integer rk, real dt) {
 			for (integer field = 0; field != NF; ++field) {
 				du_out[field] += du[field] * dt;
 			}
+
 			const real xp = X[XDIM][iii_p] - HALF * dx;
 			const real xm = X[XDIM][iii_m] - HALF * dx;
 			const real yp = X[YDIM][jjj_p] - HALF * dx;

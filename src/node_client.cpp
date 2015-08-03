@@ -21,8 +21,8 @@ hpx::future<hpx::id_type> node_client::load_node(std::size_t filepos, const std:
 	return hpx::async<typename node_server::load_node_action>(get_gid(),filepos, fname, loc, id);
 }
 
-hpx::future<std::vector<real>> node_client::conserved_sums() const {
-	return hpx::async<typename node_server::conserved_sums_action>(get_gid());
+hpx::future<diagnostics_t> node_client::diagnostics() const {
+	return hpx::async<typename node_server::diagnostics_action>(get_gid());
 }
 
 

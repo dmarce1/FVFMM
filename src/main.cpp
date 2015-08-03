@@ -28,11 +28,21 @@ void node_server::start_run() {
 	output_cnt = root_ptr->get_time() / output_dt;
 	while (true) {
 
-		auto sums = conserved_sums();
+		auto diags = diagnostics();
 		FILE* fp = fopen( "diag.dat", "at");
 		fprintf( fp, "%12.6e ", t);
 		for( integer f = 0; f != NF; ++f) {
-			fprintf( fp, "%12.6e ", sums[f]);
+			fprintf( fp, "%15.8e ", diags.grid_sum[f]+diags.outflow_sum[f]);
+			fprintf( fp, "%15.8e ", diags.outflow_sum[f]);
+			}
+		fprintf( fp, "\n");
+		fclose(fp);
+
+		fp = fopen( "spin.dat", "at");
+		fprintf( fp, "%12.6e ", t);
+		for( integer f = 0; f != NDIM; ++f) {
+			fprintf( fp, "%15.8e ", diags.s_sum[f]);
+			fprintf( fp, "%15.8e ", diags.l_sum[f]);
 			}
 		fprintf( fp, "\n");
 		fclose(fp);

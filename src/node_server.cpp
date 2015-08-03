@@ -29,6 +29,7 @@ typedef node_server::copy_to_locality_action copy_to_locality_action_type;
 typedef node_server::get_child_client_action get_child_client_action_type;
 typedef node_server::form_tree_action form_tree_action_type;
 typedef node_server::get_ptr_action get_ptr_action_type;
+typedef node_server::diagnostics_action diagnostics_action_type;
 
 HPX_REGISTER_ACTION (regrid_gather_action_type);
 HPX_REGISTER_ACTION (regrid_scatter_action_type);
@@ -44,6 +45,7 @@ HPX_REGISTER_ACTION (copy_to_locality_action_type);
 HPX_REGISTER_ACTION (get_child_client_action_type);
 HPX_REGISTER_ACTION (form_tree_action_type);
 HPX_REGISTER_ACTION (get_ptr_action_type);
+HPX_REGISTER_ACTION (diagnostics_action_type);
 
 integer node_server::local_node_count = 0;
 hpx::lcos::local::spinlock node_server::timestep_lock;
@@ -72,21 +74,22 @@ node_server::node_server(node_server&& other) {
 }
 
 
-std::vector<real> node_server::conserved_sums() const {
-	std::vector<real> sums(NF,ZERO);
+diagnostics_t node_server::diagnostics() const {
+	diagnostics_t sums;
 	if( is_refined ) {
-		std::vector<hpx::future<std::vector<real>>> futs(NCHILD);
+		std::vector<hpx::future<diagnostics_t>> futs(NCHILD);
 		for( integer ci = 0; ci != NCHILD; ++ci) {
-			futs[ci] = children[ci].conserved_sums();
+			futs[ci] = children[ci].diagnostics();
 		}
 		for( integer ci = 0; ci != NCHILD; ++ci) {
 			auto this_sum = futs[ci].get();
-			for( integer field = 0; field != NF; ++field) {
-				sums[field] += this_sum[field];
-			}
+			sums += this_sum;
 		}
 	} else {
-		sums = grid_ptr->conserved_sums();
+		sums.grid_sum = grid_ptr->conserved_sums();
+		sums.outflow_sum = grid_ptr->conserved_outflows();
+		sums.s_sum = grid_ptr->s_sums();
+		sums.l_sum = grid_ptr->l_sums();
 	}
 	return sums;
 }

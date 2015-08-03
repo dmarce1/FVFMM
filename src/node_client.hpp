@@ -11,6 +11,8 @@
 #include "defs.hpp"
 #include "node_location.hpp"
 #include "taylor.hpp"
+
+struct diagnostics_t;
 //#include <boost/mpi/packed_iarchive.hpp>
 
 class node_server;
@@ -20,7 +22,7 @@ private:
 	typedef hpx::components::client_base<node_client, node_server> base_type;
 public:
 	hpx::future<hpx::id_type> load_node(std::size_t fpos, const std::string& fname, const node_location&, const hpx::id_type& );
-	hpx::future<std::vector<real>> conserved_sums() const;
+	hpx::future<diagnostics_t> diagnostics() const;
 	node_client();
 	hpx::future<node_server*> get_ptr() const;
 	hpx::future<void> form_tree(const hpx::id_type&, const hpx::id_type&, const std::vector<hpx::shared_future<hpx::id_type>>& );
