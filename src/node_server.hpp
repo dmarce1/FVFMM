@@ -161,6 +161,10 @@ public:
 
 	node_server* get_ptr();
 	HPX_DEFINE_COMPONENT_ACTION(node_server, get_ptr, get_ptr_action);
+
+	std::vector<real> conserved_sums() const;
+	HPX_DEFINE_COMPONENT_ACTION(node_server, conserved_sums, conserved_sums_action);
+
 };
 
 

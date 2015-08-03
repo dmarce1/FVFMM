@@ -48,7 +48,7 @@ void serialize(Archive & ar, std::array<T,N> & a, const unsigned int version)
 #endif
 
 
-const real DEFAULT_OMEGA = 0.1;
+const real DEFAULT_OMEGA = 0.236366935;
 
 const integer MAX_LEVEL = 2;
 enum boundary_type {OUTFLOW, REFLECT};
@@ -107,6 +107,7 @@ const real HALF = real(1) / real(2);
 const real TWELFTH = real(1) / real(12);
 
 const real cfl = real(1) / real(15);
+const real ei_floor = 1.0e-15;
 const integer NRK = 2;
 const real rk_beta[NRK] = { ONE, HALF };
 

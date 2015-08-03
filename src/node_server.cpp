@@ -72,6 +72,27 @@ node_server::node_server(node_server&& other) {
 }
 
 
+std::vector<real> node_server::conserved_sums() const {
+	std::vector<real> sums;
+	if( is_refined ) {
+		std::vector<hpx::future<std::vector<real>>> futs(NCHILD);
+		for( integer ci = 0; ci != NCHILD; ++ci) {
+			futs[ci] = children[ci].conserved_sums();
+		}
+		sums = futs[0].get();
+		for( integer ci = 1; ci != NCHILD; ++ci) {
+			auto this_sum = futs[ci].get();
+			for( integer field = 0; field != NF; ++field) {
+				sums[field] += this_sum[field];
+			}
+		}
+	} else {
+		sums = grid_ptr->conserved_sums();
+	}
+	return sums;
+}
+
+
 void node_server::form_tree(const hpx::id_type& self_gid, const hpx::id_type& parent_gid,
 		const std::vector<hpx::shared_future<hpx::id_type>>& sib_gids) {
 	for (integer si = 0; si != NFACE; ++si) {
@@ -213,7 +234,9 @@ void node_server::reduce_this_timestep(double dt) {
 }
 
 real node_server::get_local_timestep() {
-	return local_timestep_channel->get();
+	const auto dt = local_timestep_channel->get();
+	local_timestep = std::numeric_limits<real>::max();
+	return dt;
 }
 
 void node_server::set_global_timestep(real t) {

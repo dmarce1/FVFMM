@@ -67,7 +67,43 @@ std::vector<real> star(real x, real y, real z) {
 	}
 	u[tau_i] = std::pow(u[egas_i], (real(1) / real(fgamma)));
 	u[sx_i] = -DEFAULT_OMEGA * y * u[rho_i];
-	u[sy_i] = +DEFAULT_OMEGA * x* u[rho_i];
+	u[sy_i] = +DEFAULT_OMEGA * x * u[rho_i];
 	return u;
 }
 
+std::vector<real> equal_mass_binary( real x, real y, real z) {
+	real theta;
+	real alpha = 1.0 / 20.0;
+	const real n = real(1) / (fgamma - real(1));
+	const real rho_min = 1.0e-6;
+	std::vector<real> u(NF, real(0));
+	const real d = 1.0/3.0;
+	real x1 = x - d;
+	real x2 = x + d;
+	real y1 = y;
+	real y2 = y;
+	real z1 = z;
+	real z2 = z;
+
+	const real r1 = std::sqrt(x1 * x1 + y1 * y1 + z1 * z1) / alpha;
+	const real r2 = std::sqrt(x2 * x2 + y2 * y2 + z2 * z2) / alpha;
+
+	const real theta_min = std::pow(rho_min, real(1) / n);
+	const auto c0 = real(4) * real(M_PI) * alpha * alpha / (n + real(1));
+
+	if (r1 <= rmax || r2 <= rmax) {
+		real r = std::min(r1,r2);
+		theta = lane_emden(r, dr);
+		theta = std::max(theta, theta_min);
+	} else {
+		theta = theta_min;
+	}
+	u[rho_i] = std::pow(theta, n);
+	u[egas_i] = std::pow(theta, fgamma * n) * c0 / (fgamma - real(1));
+	u[egas_i] = std::max(u[egas_i], ei_floor);
+	u[tau_i] = std::pow(u[egas_i], (real(1) / real(fgamma)));
+	u[sx_i] = -DEFAULT_OMEGA * y * u[rho_i];
+	u[sy_i] = +DEFAULT_OMEGA * x * u[rho_i];
+	u[egas_i] += HALF*DEFAULT_OMEGA*DEFAULT_OMEGA*(x*x+y*y)*u[rho_i];
+	return u;
+}

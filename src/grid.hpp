@@ -103,6 +103,7 @@ public:
 	integer get_step() const;
 
 	void diagnostics();
+	std::vector<real> conserved_sums() const;
 	grid(const std::function<std::vector<real>(real, real, real)>&, real dx, std::array<real, NDIM> xmin,
 			integer flags);
 	grid(real dx, std::array<real, NDIM>, integer flags);

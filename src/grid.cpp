@@ -11,6 +11,26 @@
 
 real grid::omega = DEFAULT_OMEGA;
 
+std::vector<real> grid::conserved_sums() const {
+	std::vector<real> sum(NF);
+	const real dV = dx*dx*dx;
+	std::fill(sum.begin(), sum.end(), ZERO);
+	for( integer i = HBW; i != HNX - HBW; ++i) {
+		for( integer j= HBW; j != HNX -HBW; ++j) {
+			for( integer k = HBW; k != HNX - HBW; ++k) {
+				const integer iii = i * DNX + j * DNY + k * DNZ;
+				for( integer field = 0; field != NF; ++field) {
+					sum[field] += U[field][iii] * dV;
+					if( field == egas_i ) {
+						sum[field] += U[pot_i][iii] * HALF * dV;
+					}
+				}
+			}
+		}
+	}
+	return sum;
+}
+
 void grid::set_omega(real o) {
 	omega = o;
 }
@@ -204,12 +224,23 @@ void grid::reconstruct() {
 				U[field][iii] /= U[rho_i][iii];
 			}
 		}
+/*		if (field == sx_i) {
+#pragma GCC ivdep
+			for (integer iii = 0; iii != HN3; ++iii) {
+				U[field][iii] += omega * X[YDIM][iii];
+			}
+		} else if (field == sy_i) {
+#pragma GCC ivdep
+			for (integer iii = 0; iii != HN3; ++iii) {
+				U[field][iii] -= omega * X[XDIM][iii];
+			}
+		}*/
 #pragma GCC ivdep
 		for (integer iii = HNX * HNX; iii != HN3 - HNX * HNX; ++iii) {
 			const real u0 = U[field][iii];
-			slpx[field][iii] = minmod_theta(U[field][iii + DNX] - u0, u0 - U[field][iii - DNX], 1.3);
-			slpy[field][iii] = minmod_theta(U[field][iii + DNY] - u0, u0 - U[field][iii - DNY], 1.3);
-			slpz[field][iii] = minmod_theta(U[field][iii + DNZ] - u0, u0 - U[field][iii - DNZ], 1.3);
+			slpx[field][iii] = minmod_theta(U[field][iii + DNX] - u0, u0 - U[field][iii - DNX], 1.0);
+			slpy[field][iii] = minmod_theta(U[field][iii + DNY] - u0, u0 - U[field][iii - DNY], 1.0);
+			slpz[field][iii] = minmod_theta(U[field][iii + DNZ] - u0, u0 - U[field][iii - DNZ], 1.0);
 		}
 	}
 #pragma GCC ivdep
@@ -239,17 +270,7 @@ void grid::reconstruct() {
 			Uf[FZP][field][iii] = u0 + HALF * slpz[field][iii];
 			Uf[FZM][field][iii] = u0 - HALF * slpz[field][iii];
 		}
-#pragma GCC ivdep
-		for (integer iii = 2 * HNX * HNX; iii != HN3 - HNX * HNX; ++iii) {
-			const real u0 = U[field][iii];
-			Uf[FXP][field][iii] = u0 + HALF * slpx[field][iii];
-			Uf[FXM][field][iii] = u0 - HALF * slpx[field][iii];
-			Uf[FYP][field][iii] = u0 + HALF * slpy[field][iii];
-			Uf[FYM][field][iii] = u0 - HALF * slpy[field][iii];
-			Uf[FZP][field][iii] = u0 + HALF * slpz[field][iii];
-			Uf[FZM][field][iii] = u0 - HALF * slpz[field][iii];
-		}
-		if (field == phi_i) {
+		if (field == pot_i) {
 #pragma GCC ivdep
 			for (integer iii = HNX * HNX; iii != HN3 - HNX * HNX; ++iii) {
 				const real phi_x = HALF * (Uf[FXM][field][iii] + Uf[FXP][field][iii - DNX]);
@@ -263,6 +284,35 @@ void grid::reconstruct() {
 				Uf[FZP][field][iii - DNZ] = phi_z;
 			}
 		}
+		/*else if (field == sx_i) {
+#pragma GCC ivdep
+			for (integer iii = 0; iii != HN3; ++iii) {
+				U[field][iii]       -= omega *  X[YDIM][iii];
+			}
+#pragma GCC ivdep
+			for (integer iii = DNY; iii != HN3-DNY; ++iii) {
+				Uf[FXM][field][iii] -= omega *  X[YDIM][iii];
+				Uf[FYM][field][iii] -= omega * (X[YDIM][iii] + X[YDIM][iii-DNY])*HALF;
+				Uf[FZM][field][iii] -= omega *  X[YDIM][iii];
+				Uf[FXP][field][iii] -= omega *  X[YDIM][iii];
+				Uf[FYP][field][iii] -= omega * (X[YDIM][iii] + X[YDIM][iii+DNY])*HALF;
+				Uf[FZP][field][iii] -= omega *  X[YDIM][iii];
+			}
+		} else if (field == sy_i) {
+#pragma GCC ivdep
+			for (integer iii = 0; iii != HN3; ++iii) {
+				U[field][iii]       += omega *  X[XDIM][iii];
+			}
+#pragma GCC ivdep
+			for (integer iii = DNX; iii != HN3-DNX; ++iii) {
+				Uf[FXM][field][iii] += omega * (X[XDIM][iii] + X[XDIM][iii-DNX])*HALF;
+				Uf[FYM][field][iii] += omega *  X[XDIM][iii];
+				Uf[FZM][field][iii] += omega *  X[XDIM][iii];
+				Uf[FXP][field][iii] += omega * (X[XDIM][iii] + X[XDIM][iii+DNX])*HALF;
+				Uf[FYP][field][iii] += omega *  X[XDIM][iii];
+				Uf[FZP][field][iii] += omega *  X[XDIM][iii];
+			}
+		}*/
 		if (field != rho_i) {
 #pragma GCC ivdep
 			for (integer iii = 0; iii != HN3; ++iii) {
@@ -286,7 +336,7 @@ integer grid::get_step() const {
 real grid::compute_fluxes() {
 	real max_lambda = ZERO;
 	std::array<std::vector<real>, NF> ur, ul, f;
-	std::vector<space_vector> xr, xl;
+	std::vector<space_vector> x;
 
 	const integer line_sz = HNX - 2 * HBW + 1;
 	for (integer field = 0; field != NF; ++field) {
@@ -294,8 +344,7 @@ real grid::compute_fluxes() {
 		ul[field].resize(line_sz);
 		f[field].resize(line_sz);
 	}
-	xr.resize(line_sz);
-	xl.resize(line_sz);
+	x.resize(line_sz);
 
 	for (integer dim = 0; dim != NDIM; ++dim) {
 
@@ -315,11 +364,10 @@ real grid::compute_fluxes() {
 						ul[field][i - HBW] = Uf[face_p][field][im];
 					}
 					for( integer d = 0; d != NDIM; ++d) {
-						xr[i - HBW][d] = X[d][i0];
-						xl[i - HBW][d] = X[d][im];
+						x[i - HBW][d] = (X[d][i0] + X[d][im])*HALF;
 					}
 				}
-				const real this_max_lambda = roe_fluxes(f, ul, ur, xl, xr, omega, dim);
+				const real this_max_lambda = roe_fluxes(f, ul, ur, x, omega, dim);
 				max_lambda = std::max(max_lambda, this_max_lambda);
 				for (integer field = 0; field != NF; ++field) {
 					for (integer i = HBW; i != HNX - HBW + 1; ++i) {
@@ -330,6 +378,8 @@ real grid::compute_fluxes() {
 			}
 		}
 	}
+//	if( max_lambda > 1 )
+//	printf( "%e\n", max_lambda);
 
 	return max_lambda;
 }
@@ -502,6 +552,10 @@ void grid::next_u(integer rk, real dt) {
 			for (integer field = 0; field != NF; ++field) {
 				for (integer k = HBW; k != HNX - HBW; ++k) {
 					const integer iii = DNX * i + DNY * j + DNZ * k;
+//					if( field == rho_i) {
+//						real dudt = dUdt[field][iii];
+//						real rho =  U[rho_i][iii];
+//					}
 					const real u1 = U[field][iii] + dUdt[field][iii] * dt;
 					const real u0 = U0[field][iii];
 					U[field][iii] = (ONE - rk_beta[rk]) * u0 + rk_beta[rk] * u1;
@@ -610,6 +664,13 @@ void grid::next_u(integer rk, real dt) {
 				real ei = U[egas_i][iii] - ek;
 				if (ei > de_switch1 * U[egas_i][iii]) {
 					U[tau_i][iii] = std::pow(ei, ONE / fgamma);
+				}
+				if( U[tau_i][iii] < ZERO ) {
+					printf( "Tau is negative\n");
+					abort();
+				} else if( U[rho_i][iii] <= ZERO ) {
+					printf( "Rho is non-positive\n");
+					abort();
 				}
 			}
 		}

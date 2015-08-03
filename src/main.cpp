@@ -1,6 +1,5 @@
-#ifndef NDEBUG
 #include <fenv.h>
-#else
+#ifdef NDEBUG
 #include <mpi.h>
 #endif
 
@@ -17,7 +16,7 @@ void node_server::start_run() {
 	printf("Starting...\n");
 	solve_gravity(false, 3);
 
-	double output_dt = 0.01;
+	double output_dt = (real(2)*real(M_PI)/DEFAULT_OMEGA)/100.0;
 	integer output_cnt;
 
 	real& t = current_time;
@@ -28,6 +27,15 @@ void node_server::start_run() {
 	hpx::future<void> output_done = hpx::make_ready_future();
 	output_cnt = root_ptr->get_time() / output_dt;
 	while (true) {
+
+		auto sums = conserved_sums();
+		FILE* fp = fopen( "diag.dat", "at");
+		fprintf( fp, "%12.6e ", t);
+		for( integer f = 0; f != NF; ++f) {
+			fprintf( fp, "%12.6e ", sums[f]);
+			}
+		fprintf( fp, "\n");
+		fclose(fp);
 
 #ifdef NDEBUG
 		double tstart = MPI_Wtime();
@@ -75,11 +83,11 @@ void node_server::start_run() {
 }
 
 int hpx_main(int argc, char* argv[]) {
-#ifndef NDEBUG
+//#ifndef NDEBUG
 	feenableexcept(FE_DIVBYZERO);
 	feenableexcept(FE_INVALID);
 	feenableexcept(FE_OVERFLOW);
-#endif
+//#endif
 	node_client root_id = node_client::create(hpx::find_here());
 	node_client root_client(root_id);
 
