@@ -24,11 +24,11 @@ void node_server::collect_hydro_boundaries(integer rk) {
 			}
 		}
 		for (integer face = 2 * dim; face != 2 * dim + 2; ++face) {
-			if (!is_physical[face]) {
+			if (is_physical[face]) {
+				grid_ptr->set_physical_boundaries(face);
+			} else {
 				const std::vector<real> bdata = sibling_hydro_channels[rk][face]->get();
 				set_hydro_boundary(bdata, face);
-			} else {
-				grid_ptr->set_physical_boundaries(face);
 			}
 		}
 	}

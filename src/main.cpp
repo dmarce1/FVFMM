@@ -16,7 +16,7 @@ void node_server::start_run() {
 	printf("Starting...\n");
 	solve_gravity(false, 3);
 
-	double output_dt = (real(2)*real(M_PI)/DEFAULT_OMEGA)/100.0;
+	double output_dt = (real(2)*real(M_PI)/DEFAULT_OMEGA)/256.0;
 	integer output_cnt;
 
 	real& t = current_time;

@@ -10,6 +10,7 @@
 #include <cassert>
 
 real grid::omega = DEFAULT_OMEGA;
+//real grid::omega = ZERO;
 
 std::vector<real> grid::conserved_sums() const {
 	std::vector<real> sum(NF);
@@ -224,7 +225,7 @@ void grid::reconstruct() {
 				U[field][iii] /= U[rho_i][iii];
 			}
 		}
-/*		if (field == sx_i) {
+		if (field == sx_i) {
 #pragma GCC ivdep
 			for (integer iii = 0; iii != HN3; ++iii) {
 				U[field][iii] += omega * X[YDIM][iii];
@@ -234,7 +235,7 @@ void grid::reconstruct() {
 			for (integer iii = 0; iii != HN3; ++iii) {
 				U[field][iii] -= omega * X[XDIM][iii];
 			}
-		}*/
+		}
 #pragma GCC ivdep
 		for (integer iii = HNX * HNX; iii != HN3 - HNX * HNX; ++iii) {
 			const real u0 = U[field][iii];
@@ -284,7 +285,7 @@ void grid::reconstruct() {
 				Uf[FZP][field][iii - DNZ] = phi_z;
 			}
 		}
-		/*else if (field == sx_i) {
+		else if (field == sx_i) {
 #pragma GCC ivdep
 			for (integer iii = 0; iii != HN3; ++iii) {
 				U[field][iii]       -= omega *  X[YDIM][iii];
@@ -312,7 +313,7 @@ void grid::reconstruct() {
 				Uf[FYP][field][iii] += omega *  X[XDIM][iii];
 				Uf[FZP][field][iii] += omega *  X[XDIM][iii];
 			}
-		}*/
+		}
 		if (field != rho_i) {
 #pragma GCC ivdep
 			for (integer iii = 0; iii != HN3; ++iii) {
@@ -485,6 +486,8 @@ void grid::compute_sources() {
 				src[sz_i][iii] = U[rho_i][iii] * G[gz_i][iii];
 				src[sx_i][iii] += omega * U[sy_i][iii];
 				src[sy_i][iii] -= omega * U[sx_i][iii];
+				src[egas_i][iii] -= omega * X[YDIM][iii] * U[rho_i][iii] * G[gx_i][iii];
+				src[egas_i][iii] += omega * X[XDIM][iii] * U[rho_i][iii] * G[gy_i][iii];
 			}
 		}
 	}

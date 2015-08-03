@@ -73,14 +73,13 @@ node_server::node_server(node_server&& other) {
 
 
 std::vector<real> node_server::conserved_sums() const {
-	std::vector<real> sums;
+	std::vector<real> sums(NF,ZERO);
 	if( is_refined ) {
 		std::vector<hpx::future<std::vector<real>>> futs(NCHILD);
 		for( integer ci = 0; ci != NCHILD; ++ci) {
 			futs[ci] = children[ci].conserved_sums();
 		}
-		sums = futs[0].get();
-		for( integer ci = 1; ci != NCHILD; ++ci) {
+		for( integer ci = 0; ci != NCHILD; ++ci) {
 			auto this_sum = futs[ci].get();
 			for( integer field = 0; field != NF; ++field) {
 				sums[field] += this_sum[field];
@@ -170,7 +169,7 @@ real node_server::step() {
 	real cfl0 = cfl;
 	grid_ptr->store();
 
-	for (integer rk = 0; rk < 1; ++rk) {
+	for (integer rk = 0; rk < NRK; ++rk) {
 		if (!is_refined) {
 			grid_ptr->reconstruct();
 			a = grid_ptr->compute_fluxes();
@@ -185,7 +184,7 @@ real node_server::step() {
 			grid_ptr->compute_sources();
 			grid_ptr->compute_dudt();
 		}
-		compute_fmm(DRHODT, true, 2 * rk + 0);
+		compute_fmm(DRHODT, false, 2 * rk + 0);
 		if (rk == 0) {
 			dt = global_timestep_channel->get();
 		}
