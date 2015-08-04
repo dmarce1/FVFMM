@@ -42,6 +42,7 @@ std::vector<real> grid::s_sums() const {
 				const integer iii = i * DNX + j * DNY + k * DNZ;
 				for( integer d = 0; d != NDIM; ++d ) {
 					sum[d] += S[d][iii] * dV;
+//					sum[d] += omega * dx * dx * U[rho_i][iii];
 				}
 			}
 		}
@@ -423,6 +424,9 @@ real grid::compute_fluxes() {
 					for (integer i = HBW; i != HNX - HBW + 1; ++i) {
 						const integer i0 = DN[dx_i] * i + DN[dy_i] * j + DN[dz_i] * k;
 						F[dim][field][i0] = f[field][i - HBW];
+			//			if( i == HBW || i == HNX - HBW) {
+			//				F[dim][field][i0]  = ZERO;
+			//			}
 					}
 				}
 			}
@@ -558,9 +562,9 @@ void grid::compute_sources() {
 				for (integer field = 0; field != NF; ++field) {
 					src[field][iii] = ZERO;
 				}
-				src[sx_i][iii] = U[rho_i][iii] * G[gx_i][iii];
-				src[sy_i][iii] = U[rho_i][iii] * G[gy_i][iii];
-				src[sz_i][iii] = U[rho_i][iii] * G[gz_i][iii];
+				src[sx_i][iii] += U[rho_i][iii] * G[gx_i][iii];
+				src[sy_i][iii] += U[rho_i][iii] * G[gy_i][iii];
+				src[sz_i][iii] += U[rho_i][iii] * G[gz_i][iii];
 				src[sx_i][iii] += omega * U[sy_i][iii];
 				src[sy_i][iii] -= omega * U[sx_i][iii];
 
@@ -632,22 +636,11 @@ void grid::next_u(integer rk, real dt) {
 	std::vector<real> ds(NDIM, ZERO);
 	for (integer i = HBW; i != HNX - HBW; ++i) {
 		for (integer j = HBW; j != HNX - HBW; ++j) {
-			for (integer field = 0; field != NF; ++field) {
-				for (integer k = HBW; k != HNX - HBW; ++k) {
-					const integer iii = DNX * i + DNY * j + DNZ * k;
-//					if( field == rho_i) {
-//						real dudt = dUdt[field][iii];
-//						real rho =  U[rho_i][iii];
-//					}
-					const real u1 = U[field][iii] + dUdt[field][iii] * dt;
-					const real u0 = U0[field][iii];
-					U[field][iii] = (ONE - rk_beta[rk]) * u0 + rk_beta[rk] * u1;
-				}
-			}
 			for (integer k = HBW; k != HNX - HBW; ++k) {
 				const integer iii = DNX * i + DNY * j + DNZ * k;
 				real d = (-(F[YDIM][sz_i][iii + DNY] + F[YDIM][sz_i][iii])
 						+ (F[ZDIM][sy_i][iii + DNZ] + F[ZDIM][sy_i][iii])) * HALF;
+				d -= omega * X[ZDIM][iii] * U[sx_i][iii];
 				const real s1x = S[XDIM][iii] + d * dt;
 				S[XDIM][iii] = (ONE - rk_beta[rk]) * S0[XDIM][iii] + rk_beta[rk] * s1x;
 			}
@@ -655,20 +648,25 @@ void grid::next_u(integer rk, real dt) {
 				const integer iii = DNX * i + DNY * j + DNZ * k;
 				real d = (+(F[XDIM][sz_i][iii + DNX] + F[XDIM][sz_i][iii])
 						- (F[ZDIM][sx_i][iii + DNZ] + F[ZDIM][sx_i][iii])) * HALF;
+				d -= omega * X[ZDIM][iii] * U[sy_i][iii];
 				const real s1y = S[YDIM][iii] + d * dt;
 				S[YDIM][iii] = (ONE - rk_beta[rk]) * S0[YDIM][iii] + rk_beta[rk] * s1y;
 			}
 			for (integer k = HBW; k != HNX - HBW; ++k) {
 				const integer iii = DNX * i + DNY * j + DNZ * k;
 				real d = (-(F[XDIM][sy_i][iii + DNX] + F[XDIM][sy_i][iii])
-						+ (F[YDIM][sx_i][iii + DNY] + F[YDIM][sx_i][iii])) * HALF;
-		//		d -= dUdt[rho_i][iii] * omega * X[YDIM][iii] * dx;
-		//		d += dUdt[rho_i][iii] * omega * X[XDIM][iii] * dx;
-		//		d += omega * U[sy_i][iii] * dx;
-		//		d -= omega * U[sx_i][iii] * dx;
-
+						 + (F[YDIM][sx_i][iii + DNY] + F[YDIM][sx_i][iii])) * HALF;
+				d += omega * (X[XDIM][iii] * U[sx_i][iii] + X[YDIM][iii] * U[sy_i][iii]);
 				const real s1z = S[ZDIM][iii] + d * dt;
 				S[ZDIM][iii] = (ONE - rk_beta[rk]) * S0[ZDIM][iii] + rk_beta[rk] * s1z;
+			}
+			for (integer field = 0; field != NF; ++field) {
+				for (integer k = HBW; k != HNX - HBW; ++k) {
+					const integer iii = DNX * i + DNY * j + DNZ * k;
+					const real u1 = U[field][iii] + dUdt[field][iii] * dt;
+					const real u0 = U0[field][iii];
+					U[field][iii] = (ONE - rk_beta[rk]) * u0 + rk_beta[rk] * u1;
+				}
 			}
 		}
 	}

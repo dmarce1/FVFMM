@@ -104,6 +104,7 @@ public:
 
 	void diagnostics();
 	std::vector<real> conserved_sums() const;
+	std::vector<real> s_outflow() const;
 	std::vector<real> s_sums() const;
 	std::vector<real> l_sums() const;
 	std::vector<real> conserved_outflows() const;
