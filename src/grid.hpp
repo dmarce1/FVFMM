@@ -185,7 +185,7 @@ public:
 		void serialize(Arc& arc, unsigned int) {
 			arc & nodes;
 			arc & zones;
-			for( integer i = 0; i != NF + NGF; ++i ) {
+			for( integer i = 0; i != NF + NGF + NDIM; ++i ) {
 				arc & data[i];
 			}
 		}

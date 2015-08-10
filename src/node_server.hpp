@@ -97,6 +97,7 @@ private:
 	std::array<std::array<std::shared_ptr<channel<std::vector<real>>> ,NFACE>,NRK> sibling_hydro_channels;
 	std::array<std::shared_ptr<channel<expansion_pass_type>>,4> parent_gravity_channel;
 	std::array<std::array<std::shared_ptr<channel<std::vector<real>>> ,NFACE>,4> sibling_gravity_channels;
+	std::array<std::array<std::shared_ptr<channel<std::vector<real> >>, NCHILD>,NRK> child_hydro_channels;
 	std::array<std::array<std::shared_ptr<channel<multipole_pass_type>>, NCHILD>,4> child_gravity_channels;
 	std::shared_ptr<channel<real>> global_timestep_channel;
 
@@ -117,6 +118,7 @@ private:
 
 	void initialize(real);
 	void collect_hydro_boundaries(integer rk);
+	hpx::future<void> exchange_interlevel_hydro_data(integer rk);
 	static void static_initialize();
 	void clear_family();
 
@@ -136,6 +138,8 @@ public:
 	~node_server();
 	node_server( const node_server& other);
 	node_server(const node_location&, const node_client& parent_id, real);
+	std::vector<real> restricted_grid() const;
+	void load_from_restricted_child(const std::vector<real>&, integer);
 	integer get_boundary_size(std::array<integer, NDIM>&, std::array<integer, NDIM>&, integer,
 			integer) const;
 	void set_hydro_boundary(const std::vector<real>&, integer face);
@@ -152,6 +156,9 @@ public:
 
 	void recv_hydro_boundary( std::vector<real>&&, integer rk, integer face);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_hydro_boundary, send_hydro_boundary_action);
+
+	void recv_hydro_children( std::vector<real>&&, integer rk, integer ci);
+	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_hydro_children, send_hydro_children_action);
 
 	void recv_gravity_boundary( std::vector<real>&&, integer face, integer);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_gravity_boundary, send_gravity_boundary_action);
@@ -207,6 +214,7 @@ HPX_REGISTER_ACTION_DECLARATION( node_server::send_hydro_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION( node_server::send_gravity_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION( node_server::send_gravity_multipoles_action);
 HPX_REGISTER_ACTION_DECLARATION( node_server::send_gravity_expansions_action);
+HPX_REGISTER_ACTION_DECLARATION( node_server::send_hydro_children_action);
 HPX_REGISTER_ACTION_DECLARATION( node_server::step_action);
 HPX_REGISTER_ACTION_DECLARATION( node_server::regrid_action);
 HPX_REGISTER_ACTION_DECLARATION( node_server::solve_gravity_action);

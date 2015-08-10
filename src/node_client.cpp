@@ -107,6 +107,11 @@ void node_client::send_gravity_multipoles(const multipole_pass_type& data, integ
 	hpx::apply<typename node_server::send_gravity_multipoles_action>(get_gid(), data, ci, c);
 }
 
+void node_client::send_hydro_children( std::vector<real>&& data, integer rk, integer ci) const {
+	hpx::apply<typename node_server::send_hydro_children_action>(get_gid(), data, rk, ci);
+}
+
+
 void node_client::send_gravity_expansions(const expansion_pass_type& data, integer c) const {
 	hpx::apply<typename node_server::send_gravity_expansions_action>(get_gid(), data, c);
 }

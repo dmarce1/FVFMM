@@ -81,11 +81,15 @@ void node_server::start_run() {
 			free(fname);
 		}
 		real dt = step();
+		fp = fopen( "step.dat", "at");
 #ifdef NDEBUG
 		printf("%i %e %e %e\n", int(step_num), double(t), double(dt), MPI_Wtime() - tstart);
+		fprintf(fp, "%i %e %e %e\n", int(step_num), double(t), double(dt), MPI_Wtime() - tstart);
 #else
 		printf("%i %e %e\n", int(step_num), double(t), double(dt));
+		fprintf(fp, "%i %e %e\n", int(step_num), double(t), double(dt));
 #endif
+		fclose(fp);
 		t += dt;
 		++step_num;
 
@@ -93,11 +97,11 @@ void node_server::start_run() {
 }
 
 int hpx_main(int argc, char* argv[]) {
-//#ifndef NDEBUG
+#ifndef NDEBUG
 	feenableexcept(FE_DIVBYZERO);
 	feenableexcept(FE_INVALID);
 	feenableexcept(FE_OVERFLOW);
-//#endif
+#endif
 	node_client root_id = node_client::create(hpx::find_here());
 	node_client root_client(root_id);
 

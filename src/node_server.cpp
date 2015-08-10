@@ -30,7 +30,9 @@ typedef node_server::get_child_client_action get_child_client_action_type;
 typedef node_server::form_tree_action form_tree_action_type;
 typedef node_server::get_ptr_action get_ptr_action_type;
 typedef node_server::diagnostics_action diagnostics_action_type;
+typedef node_server::send_hydro_children_action send_hydro_children_action_type;
 
+HPX_REGISTER_ACTION( send_hydro_children_action_type );
 HPX_REGISTER_ACTION (regrid_gather_action_type);
 HPX_REGISTER_ACTION (regrid_scatter_action_type);
 HPX_REGISTER_ACTION (send_hydro_boundary_action_type);
@@ -77,12 +79,12 @@ node_server::node_server(node_server&& other) {
 diagnostics_t node_server::diagnostics() const {
 	diagnostics_t sums;
 	if( is_refined ) {
-		std::vector<hpx::future<diagnostics_t>> futs(NCHILD);
+		std::list<hpx::future<diagnostics_t>> futs;
 		for( integer ci = 0; ci != NCHILD; ++ci) {
-			futs[ci] = children[ci].diagnostics();
+			futs.push_back( children[ci].diagnostics());
 		}
-		for( integer ci = 0; ci != NCHILD; ++ci) {
-			auto this_sum = futs[ci].get();
+		for( auto ci = futs.begin(); ci != futs.end(); ++ci) {
+			auto this_sum = ci->get();
 			sums += this_sum;
 		}
 	} else {
@@ -189,23 +191,44 @@ real node_server::step() {
 		}
 		compute_fmm(DRHODT, false, 2 * rk + 0);
 		if (rk == 0) {
+
 			dt = global_timestep_channel->get();
 		}
 		if (!is_refined) {
 			grid_ptr->next_u(rk, dt);
 		}
 		compute_fmm(RHO, true, 2 * rk + 1);
-		if (!is_refined) {
+		auto interlevel_fut = exchange_interlevel_hydro_data(rk);
+		interlevel_fut.get();
+//		if( !is_refined ) {
 			collect_hydro_boundaries(rk);
-		}
+//		}
 	}
-
-	if (is_refined) {
-		hpx::wait_all(child_futs.begin(), child_futs.end());
-	}
+	hpx::wait_all(child_futs.begin(), child_futs.end());
 
 	++step_num;
 	return dt;
+}
+
+
+hpx::future<void> node_server::exchange_interlevel_hydro_data(integer rk) {
+
+	if( my_location.level() > 0 ) {
+		std::vector<real> data = restricted_grid();
+		integer ci = my_location.get_child_index();
+		parent.send_hydro_children(std::move(data), rk, ci);
+	}
+	std::list<hpx::future<void>> futs;
+	if( is_refined ) {
+		for( integer ci = 0; ci != NCHILD; ++ci) {
+			futs.push_back( hpx::async([=]() {
+				std::vector<real> data = child_hydro_channels[rk][ci]->get();
+				load_from_restricted_child(data, ci);
+			}));
+		}
+	}
+	hpx::future<void> rfut = hpx::when_all(futs.begin(), futs.end());
+	return rfut;
 }
 
 void node_server::reduce_this_timestep(double dt) {
@@ -273,9 +296,12 @@ void node_server::initialize(real t) {
 	}
 	is_refined = false;
 	siblings.resize(NFACE);
-	for (integer face = 0; face != NFACE; ++face) {
-		for (integer rk = 0; rk != NRK; ++rk) {
+	for (integer rk = 0; rk != NRK; ++rk) {
+		for (integer face = 0; face != NFACE; ++face) {
 			sibling_hydro_channels[rk][face] = std::make_shared<channel<std::vector<real>> >();
+		}
+		for( integer ci = 0; ci != NCHILD; ++ci) {
+			child_hydro_channels[rk][ci] = std::make_shared<channel<std::vector<real>>>();
 		}
 	}
 	for (integer c = 0; c != 4; ++c) {
@@ -301,6 +327,68 @@ void node_server::initialize(real t) {
 	printf("Creating grid at %i: %i %i %i w on locality %i\n", int(my_location.level()), int(my_location[0]),
 			int(my_location[1]), int(my_location[2]), int(hpx::get_locality_id()));
 }
+
+std::vector<real> node_server::restricted_grid() const {
+	std::vector<real> data(INX*INX*INX/NCHILD*(NF+NDIM));
+	integer index = 0;
+	for( integer i = HBW; i != HNX - HBW; i += 2) {
+		for( integer j = HBW; j != HNX - HBW; j += 2) {
+			for( integer k = HBW; k != HNX - HBW; k += 2) {
+				for( integer field = 0; field != NF; ++field ) {
+					real& v = data[index];
+					v = ZERO;
+					for( integer di = 0; di != 2; ++di ) {
+						for( integer dj = 0; dj != 2; ++dj) {
+							for( integer dk = 0; dk != 2; ++dk) {
+								v += grid_ptr->hydro_value(field, i + di, j + dj, k + dk) / real(NCHILD);
+							}
+						}
+					}
+					++index;
+				}
+				for( integer dim = 0; dim != NDIM; ++dim ) {
+					real& v = data[index];
+					v = ZERO;
+					for( integer di = 0; di != 2; ++di ) {
+						for( integer dj = 0; dj != 2; ++dj) {
+							for( integer dk = 0; dk != 2; ++dk) {
+								v += grid_ptr->spin_value(dim, i + di, j + dj, k + dk) / real(NCHILD);
+							}
+						}
+					}
+					++index;
+				}
+			}
+		}
+	}
+	return data;
+}
+
+void node_server::recv_hydro_children( std::vector<real>&& data, integer rk, integer ci) {
+	child_hydro_channels[rk][ci]->set_value(std::move(data));
+}
+
+void node_server::load_from_restricted_child(const std::vector<real>& data, integer ci)  {
+	integer index = 0;
+	const integer di = ((ci >> 0) & 1) * INX / 2;
+	const integer dj = ((ci >> 1) & 1) * INX / 2;
+	const integer dk = ((ci >> 2) & 1) * INX / 2;
+	for( integer i = HBW; i != HNX/2; ++i) {
+		for( integer j = HBW; j != HNX/2; ++j) {
+			for( integer k = HBW; k != HNX/2; ++k) {
+				for( integer field = 0; field != NF; ++field ) {
+					grid_ptr->hydro_value(field, i + di, j + dj, k + dk) = data[index];
+					++index;
+				}
+				for( integer field = 0; field != NDIM; ++field ) {
+					grid_ptr->spin_value(field, i + di, j + dj, k + dk) = data[index];
+					++index;
+				}
+			}
+		}
+	}
+}
+
 
 node_server::~node_server() {
 
@@ -381,6 +469,7 @@ node_server& node_server::operator=( node_server&& other ) {
 	parent = std::move(other.parent);
 	siblings = std::move(other.siblings);
 	children = std::move(other.children);
+	child_hydro_channels = std::move(other.child_hydro_channels);
 	sibling_hydro_channels = std::move(other.sibling_hydro_channels);
 	parent_gravity_channel = std::move(other.parent_gravity_channel);
 	sibling_gravity_channels = std::move(other.sibling_gravity_channels);

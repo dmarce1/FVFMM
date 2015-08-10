@@ -21,6 +21,7 @@ class node_client: public hpx::components::client_base<node_client, node_server>
 private:
 	typedef hpx::components::client_base<node_client, node_server> base_type;
 public:
+	void send_hydro_children( std::vector<real>&&, integer rk, integer ci) const;
 	hpx::future<hpx::id_type> load_node(std::size_t fpos, const std::string& fname, const node_location&, const hpx::id_type& );
 	hpx::future<diagnostics_t> diagnostics() const;
 	node_client();

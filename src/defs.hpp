@@ -50,7 +50,7 @@ void serialize(Archive & ar, std::array<T,N> & a, const unsigned int version)
 
 const real DEFAULT_OMEGA = 0.142194022;
 
-const integer MAX_LEVEL = 2;
+const integer MAX_LEVEL = 4;
 enum boundary_type {OUTFLOW, REFLECT};
 
 const integer NDIM = 3;

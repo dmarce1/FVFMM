@@ -314,12 +314,21 @@ void grid::reconstruct() {
 #pragma GCC ivdep
 		for (integer iii = HNX * HNX; iii != HN3 - HNX * HNX; ++iii) {
 			const real u0 = U[field][iii];
-			Uf[FXP][field][iii] = u0 + HALF * slpx[field][iii];
-			Uf[FXM][field][iii] = u0 - HALF * slpx[field][iii];
-			Uf[FYP][field][iii] = u0 + HALF * slpy[field][iii];
-			Uf[FYM][field][iii] = u0 - HALF * slpy[field][iii];
-			Uf[FZP][field][iii] = u0 + HALF * slpz[field][iii];
-			Uf[FZM][field][iii] = u0 - HALF * slpz[field][iii];
+			if( U[rho_i][iii] > 1.0e-6 ) {
+				Uf[FXP][field][iii] = u0 + HALF * slpx[field][iii];
+				Uf[FXM][field][iii] = u0 - HALF * slpx[field][iii];
+				Uf[FYP][field][iii] = u0 + HALF * slpy[field][iii];
+				Uf[FYM][field][iii] = u0 - HALF * slpy[field][iii];
+				Uf[FZP][field][iii] = u0 + HALF * slpz[field][iii];
+				Uf[FZM][field][iii] = u0 - HALF * slpz[field][iii];
+			} else {
+				Uf[FXP][field][iii] =
+				Uf[FXM][field][iii] =
+				Uf[FYP][field][iii] =
+				Uf[FYM][field][iii] =
+				Uf[FZP][field][iii] =
+				Uf[FZM][field][iii] = u0;
+			}
 		}
 		if (field == pot_i) {
 #pragma GCC ivdep
@@ -521,22 +530,37 @@ void grid::set_physical_boundaries(integer face) {
 						break;
 					}
 					const real value = U[field][i * dni + j * dnj + k0 * dnk];
-					real& ref = U[field][i * dni + j * dnj + k * dnk];
-					if (field != sx_i + face / 2) {
-						ref = +value;
-					} else {
+					const real iii = i * dni + j * dnj + k * dnk;
+					real& ref = U[field][iii];
+					if (field == sx_i + face / 2) {
+						real s0;
+						if(field == sx_i) {
+							s0 = -omega * X[YDIM][iii] * U[rho_i][iii];
+						} else if( field == sy_i) {
+							s0 = +omega * X[XDIM][iii] * U[rho_i][iii];
+						} else {
+							s0 = ZERO;
+						}
 						switch (boundary_types[face]) {
 						case REFLECT:
 							ref = -value;
 							break;
 						case OUTFLOW:
+							const real before = value + s0;
 							if (face % 2 == 0) {
 								ref = std::min(value, ZERO);
 							} else {
 								ref = std::max(value, ZERO);
 							}
+							const real after = ref + s0;
+							assert( rho_i < field );
+							assert( egas_i < field );
+							real this_rho =  U[rho_i][iii];
+							U[egas_i][iii] += HALF * (after * after - before * before) / this_rho;
 							break;
 						}
+					} else {
+						ref = +value;
 					}
 				}
 			}
@@ -887,3 +911,4 @@ void grid::diagnostics() {
 	fprintf(fp, "\n");
 	fclose(fp);
 }
+
