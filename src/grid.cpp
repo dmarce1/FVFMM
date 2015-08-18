@@ -12,6 +12,8 @@
 real grid::omega = DEFAULT_OMEGA;
 //real grid::omega = ZERO;
 
+
+
 std::vector<real> grid::conserved_sums() const {
 	std::vector<real> sum(NF);
 	const real dV = dx*dx*dx;
@@ -28,27 +30,6 @@ std::vector<real> grid::conserved_sums() const {
 				}
 			}
 		}
-	}
-	return sum;
-}
-
-std::vector<real> grid::s_sums() const {
-	std::vector<real> sum(NDIM);
-	const real dV = dx*dx*dx;
-	std::fill(sum.begin(), sum.end(), ZERO);
-	for( integer i = HBW; i != HNX - HBW; ++i) {
-		for( integer j= HBW; j != HNX -HBW; ++j) {
-			for( integer k = HBW; k != HNX - HBW; ++k) {
-				const integer iii = i * DNX + j * DNY + k * DNZ;
-				for( integer d = 0; d != NDIM; ++d ) {
-					sum[d] += S[d][iii] * dV;
-//					sum[d] += omega * dx * dx * U[rho_i][iii];
-				}
-			}
-		}
-	}
-	for( integer d = 0; d != NDIM; ++d) {
-		sum[d] -= S_out[d];
 	}
 	return sum;
 }
@@ -76,12 +57,6 @@ std::vector<real> grid::l_sums() const {
 	return sum;
 }
 
-std::vector<real> grid::conserved_outflows() const {
-	auto Uret = U_out;
-	Uret[egas_i] += Uret[pot_i];
-	return Uret;
-}
-
 void grid::set_omega(real o) {
 	omega = o;
 }
@@ -103,15 +78,6 @@ grid::~grid() {
 
 }
 
-
-real& grid::spin_value(integer f, integer i, integer j, integer k) {
-	return S[f][i * DNX + j * DNY + k * DNZ];
-}
-
-
-real grid::spin_value(integer f, integer i, integer j, integer k) const {
-	return S[f][i * DNX + j * DNY + k * DNZ];
-}
 
 
 real& grid::hydro_value(integer f, integer i, integer j, integer k) {
@@ -155,7 +121,7 @@ inline real minmod_theta(real a, real b, real theta) {
 	return minmod(theta * minmod(a, b), HALF * (a + b));
 }
 
-grid::grid(real _dx, std::array<real, NDIM> _xmin, integer flags) : U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), S0(NDIM), S(NDIM), src(NF), ilist_d_bnd(NFACE),ilist_n_bnd(NFACE),
+grid::grid(real _dx, std::array<real, NDIM> _xmin, integer flags) : U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF),  src(NF), ilist_d_bnd(NFACE),ilist_n_bnd(NFACE),
 		is_root(flags & GRID_IS_ROOT), is_leaf(flags & GRID_IS_LEAF) {
 	dx = _dx;
 	xmin = _xmin;
@@ -167,8 +133,6 @@ void grid::allocate() {
 	step_num = 0;
 	U_out0 = std::vector<real>(NF, ZERO);
 	U_out = std::vector<real>(NF, ZERO);
-	S_out0 = std::vector<real>(NF, ZERO);
-	S_out = std::vector<real>(NF, ZERO);
 	dphi_dt = std::vector<real>(HN3);
 	for (integer field = 0; field != NGF; ++field) {
 		G[field].resize(HN3);
@@ -186,10 +150,6 @@ void grid::allocate() {
 				X[ZDIM][iii] = (real(k - HBW) + HALF) * dx + xmin[ZDIM];
 			}
 		}
-	}
-	for (integer field = 0; field != NDIM; ++field) {
-		S0[field].resize(HN3);
-		S[field].resize(HN3);
 	}
 	for (integer field = 0; field != NF; ++field) {
 		src[field].resize(HN3);
@@ -234,14 +194,13 @@ void grid::allocate() {
 
 }
 
-grid::grid() : U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), S0(NDIM), S(NDIM), src(NF), ilist_d_bnd(NFACE), ilist_n_bnd(NFACE)
+grid::grid() : U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), ilist_d_bnd(NFACE), ilist_n_bnd(NFACE)
 {
 }
 
 grid::grid(const std::function<std::vector<real>(real, real, real)>& init_func, real _dx, std::array<real, NDIM> _xmin,
-		integer flags) : U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), S0(NDIM), S(NDIM), src(NF), ilist_d_bnd(NFACE),ilist_n_bnd(NFACE),
-		is_root(flags & GRID_IS_ROOT), is_leaf(flags & GRID_IS_LEAF), U_out(NF, ZERO), U_out0(NF, ZERO), S_out(NDIM,
-				ZERO), S_out0(NDIM, ZERO), dphi_dt(HN3) {
+		integer flags) : U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), ilist_d_bnd(NFACE),ilist_n_bnd(NFACE),
+		is_root(flags & GRID_IS_ROOT), is_leaf(flags & GRID_IS_LEAF), U_out(NF, ZERO), U_out0(NF, ZERO), dphi_dt(HN3) {
 	dx = _dx;
 	xmin = _xmin;
 	allocate();
@@ -253,10 +212,9 @@ grid::grid(const std::function<std::vector<real>(real, real, real)>& init_func, 
 				for (integer field = 0; field != NF; ++field) {
 					U[field][iii] = this_u[field];
 				}
-				for (integer d = 0; d != NDIM; ++d) {
-					S[d][iii] = ZERO;
-
-				}
+				U[zx_i][iii] = ZERO;
+				U[zy_i][iii] = ZERO;
+				U[zz_i][iii] = omega * dx * dx * U[rho_i][iii] / 6.0;
 			}
 		}
 	}
@@ -269,13 +227,22 @@ void grid::reconstruct() {
 		slpx[field].resize(HN3);
 		slpy[field].resize(HN3);
 		slpz[field].resize(HN3);
-		if (field != rho_i) {
+		if (field != rho_i && field != egas_i && field != tau_i) {
 #pragma GCC ivdep
 			for (integer iii = 0; iii != HN3; ++iii) {
 				U[field][iii] /= U[rho_i][iii];
 			}
 		}
-		if (field == sx_i) {
+
+		if( field == egas_i) {
+#pragma GCC ivdep
+			for (integer iii = 0; iii != HN3; ++iii) {
+				const real& rho = U[rho_i][iii];
+				U[field][iii] -= HALF/rho*std::pow( U[sx_i][iii], 2) ;
+				U[field][iii] -= HALF/rho*std::pow( U[sy_i][iii], 2) ;
+				U[field][iii] -= HALF/rho*std::pow( U[sz_i][iii], 2) ;
+			}
+		} else if (field == sx_i) {
 #pragma GCC ivdep
 			for (integer iii = 0; iii != HN3; ++iii) {
 				U[field][iii] += omega * X[YDIM][iii];
@@ -285,52 +252,104 @@ void grid::reconstruct() {
 			for (integer iii = 0; iii != HN3; ++iii) {
 				U[field][iii] -= omega * X[XDIM][iii];
 			}
+		} else if (field == tau_i) {
+#pragma GCC ivdep
+			for (integer iii = 0; iii != HN3; ++iii) {
+				U[field][iii] = std::pow( U[field][iii], fgamma );
+			}
 		}
 #pragma GCC ivdep
 		for (integer iii = HNX * HNX; iii != HN3 - HNX * HNX; ++iii) {
 			const real u0 = U[field][iii];
-			slpx[field][iii] = minmod_theta(U[field][iii + DNX] - u0, u0 - U[field][iii - DNX], 1.0);
-			slpy[field][iii] = minmod_theta(U[field][iii + DNY] - u0, u0 - U[field][iii - DNY], 1.0);
-			slpz[field][iii] = minmod_theta(U[field][iii + DNZ] - u0, u0 - U[field][iii - DNZ], 1.0);
+			const real b = 1.0;
+			const real a = 1.0;
+			const real theta_x = (field == sy_i || field == sz_i) ? b : a;
+			const real theta_y = (field == sx_i || field == sz_i) ? b : a;
+			const real theta_z = (field == sx_i || field == sy_i) ? b : a;
+			slpx[field][iii] = minmod_theta(U[field][iii + DNX] - u0, u0 - U[field][iii - DNX], theta_x);
+			slpy[field][iii] = minmod_theta(U[field][iii + DNY] - u0, u0 - U[field][iii - DNY], theta_y);
+			slpz[field][iii] = minmod_theta(U[field][iii + DNZ] - u0, u0 - U[field][iii - DNZ], theta_z);
 		}
+
 	}
+	const real TWELVE = 12;
+	auto func = []( real a, real sl, real sr, real u0, real ul, real ur) -> real {
+		real b = minmod(a,TWO*minmod(ur - u0,u0 - ul));
+		real cl = u0 - (ul + sl * HALF);
+		real cr = (ur - sr * HALF) - u0;
+		real c = minmod(a,TWO*minmod(cl,cr));
+		if( std::abs(b) > std::abs(c)) {
+			return b;
+		} else {
+			return c;
+		}
+	};
 #pragma GCC ivdep
 	for (integer iii = HNX * HNX; iii != HN3 - HNX * HNX; ++iii) {
-		const real lx_sum = slpy[sz_i][iii] + slpz[sy_i][iii];
-		const real ly_sum = slpx[sz_i][iii] + slpz[sx_i][iii];
-		const real lz_sum = slpx[sy_i][iii] + slpy[sx_i][iii];
-		const real lx_dif = +S[XDIM][iii] / U[rho_i][iii] / dx;
-		const real ly_dif = -S[YDIM][iii] / U[rho_i][iii] / dx;
-		const real lz_dif = +S[ZDIM][iii] / U[rho_i][iii] / dx/* - omega * dx*/;
-		slpx[sy_i][iii] = (lz_sum + lz_dif) * HALF;
-		slpy[sx_i][iii] = (lz_sum - lz_dif) * HALF;
-		slpx[sz_i][iii] = (ly_sum + ly_dif) * HALF;
-		slpz[sx_i][iii] = (ly_sum - ly_dif) * HALF;
-		slpy[sz_i][iii] = (lx_sum + lx_dif) * HALF;
-		slpz[sy_i][iii] = (lx_sum - lx_dif) * HALF;
+	//	if( U[rho_i][iii] > 1.0e-6 )  {
+			const real lx_sum = slpy[sz_i][iii] + slpz[sy_i][iii];
+			const real ly_sum = slpx[sz_i][iii] + slpz[sx_i][iii];
+			const real lz_sum = slpx[sy_i][iii] + slpy[sx_i][iii];
+			const real lx_dif = (+U[zx_i][iii] / dx) * TWELVE;
+			const real ly_dif = (-U[zy_i][iii] / dx) * TWELVE;
+			const real lz_dif = (+U[zz_i][iii] / dx - omega * dx / 6.0) * TWELVE;
+			slpx[sy_i][iii] = (lz_sum + lz_dif) * HALF;
+			slpy[sx_i][iii] = (lz_sum - lz_dif) * HALF;
+			slpx[sz_i][iii] = (ly_sum + ly_dif) * HALF;
+			slpz[sx_i][iii] = (ly_sum - ly_dif) * HALF;
+			slpy[sz_i][iii] = (lx_sum + lx_dif) * HALF;
+			slpz[sy_i][iii] = (lx_sum - lx_dif) * HALF;
+	//	}
 	}
+	auto slpx0 = slpx;
+	auto slpy0 = slpy;
+	auto slpz0 = slpz;
+#pragma GCC ivdep
+	for (integer iii = HNX * HNX; iii != HN3 - HNX * HNX; ++iii) {
 
+		real u0 = U[sx_i][iii];
+	//	slpy[sx_i][iii] = func(slpy0[sx_i][iii], slpy0[sx_i][iii-DNY], slpy0[sx_i][iii+DNY], u0, U[sx_i][iii - DNY] , U[sx_i][iii + DNY]);
+	//	slpz[sx_i][iii] = func(slpz0[sx_i][iii], slpz0[sx_i][iii-DNZ], slpz0[sx_i][iii+DNZ], u0, U[sx_i][iii - DNZ] , U[sx_i][iii + DNZ]);
+	//	slpz[sx_i][iii] = func(slpz[sx_i][iii], U[sx_i][iii + DNZ] - u0, u0 - U[sx_i][iii - DNZ], 2.0));
+
+		u0 = U[sy_i][iii];
+	//	slpx[sy_i][iii] = func(slpx0[sy_i][iii], slpx0[sy_i][iii-DNX], slpx0[sy_i][iii+DNX], u0, U[sy_i][iii - DNX] , U[sy_i][iii + DNX]);
+	//	slpz[sy_i][iii] = func(slpz0[sy_i][iii], slpz0[sy_i][iii-DNZ], slpz0[sy_i][iii+DNZ], u0, U[sy_i][iii - DNZ] , U[sy_i][iii + DNZ]);
+//		slpz[sy_i][iii] = minmod(slpz[sy_i][iii], U[sy_i][iii + DNZ] - u0, u0 - U[sy_i][iii - DNZ], 2.0));
+
+		u0 = U[sz_i][iii];
+	//	slpx[sz_i][iii] = func(slpx0[sz_i][iii], slpx0[sz_i][iii-DNX], slpx0[sz_i][iii+DNX], u0, U[sz_i][iii - DNX] , U[sz_i][iii + DNX]);
+	//	slpy[sz_i][iii] = func(slpy0[sz_i][iii], slpy0[sz_i][iii-DNY], slpy0[sz_i][iii+DNY], u0, U[sz_i][iii - DNY] , U[sz_i][iii + DNY]);
+
+	}
+	const real rho_floor = 0.0;
 	for (integer field = 0; field != NF; ++field) {
 #pragma GCC ivdep
 		for (integer iii = HNX * HNX; iii != HN3 - HNX * HNX; ++iii) {
 			const real u0 = U[field][iii];
-			if( U[rho_i][iii] > 1.0e-6 ) {
-				Uf[FXP][field][iii] = u0 + HALF * slpx[field][iii];
-				Uf[FXM][field][iii] = u0 - HALF * slpx[field][iii];
-				Uf[FYP][field][iii] = u0 + HALF * slpy[field][iii];
-				Uf[FYM][field][iii] = u0 - HALF * slpy[field][iii];
-				Uf[FZP][field][iii] = u0 + HALF * slpz[field][iii];
-				Uf[FZM][field][iii] = u0 - HALF * slpz[field][iii];
-			} else {
-				Uf[FXP][field][iii] =
-				Uf[FXM][field][iii] =
-				Uf[FYP][field][iii] =
-				Uf[FYM][field][iii] =
-				Uf[FZP][field][iii] =
-				Uf[FZM][field][iii] = u0;
+			const real rho = U[rho_i][iii];
+			const real f = std::max(rho - rho_floor, ZERO) / rho;
+			Uf[FXP][field][iii] = u0 + HALF * f*slpx[field][iii];
+			Uf[FXM][field][iii] = u0 - HALF * f*slpx[field][iii];
+			Uf[FYP][field][iii] = u0 + HALF * f*slpy[field][iii];
+			Uf[FYM][field][iii] = u0 - HALF * f*slpy[field][iii];
+			Uf[FZP][field][iii] = u0 + HALF * f*slpz[field][iii];
+			Uf[FZM][field][iii] = u0 - HALF * f*slpz[field][iii];
+
+		}
+	/*	for (integer iii = 0; iii != HN3 - HNX * HNX; ++iii) {
+			for( integer d = 0; d != NDIM; ++d ) {
+				real& m = Uf[2*d + 1][field][iii];
+				real& p = Uf[2*d][field][iii + DN[d]];
+				real diff = U[field][iii+DN[d]] - U[field][iii];
+				if( (p - m)*diff < ZERO ) {
+					const real avg = (m + p) * HALF;
+					m = avg;
+					p = avg;
+				}
 			}
 		}
-		if (field == pot_i) {
+*/		if (field == pot_i) {
 #pragma GCC ivdep
 			for (integer iii = HNX * HNX; iii != HN3 - HNX * HNX; ++iii) {
 				const real phi_x = HALF * (Uf[FXM][field][iii] + Uf[FXP][field][iii - DNX]);
@@ -372,14 +391,32 @@ void grid::reconstruct() {
 				Uf[FYP][field][iii] += omega *  X[XDIM][iii];
 				Uf[FZP][field][iii] += omega *  X[XDIM][iii];
 			}
+		} else if (field == tau_i) {
+#pragma GCC ivdep
+			for (integer iii = 0; iii != HN3; ++iii) {
+				U[field][iii] = std::pow( U[field][iii], ONE / fgamma );
+				for( integer face = 0; face != NFACE; ++face ) {
+					Uf[face][field][iii] = std::pow( Uf[face][field][iii], ONE / fgamma );
+				}
+			}
 		}
-		if (field != rho_i) {
+		if (field != rho_i && field != egas_i && field != tau_i) {
 #pragma GCC ivdep
 			for (integer iii = 0; iii != HN3; ++iii) {
 				U[field][iii] *= U[rho_i][iii];
 				for (integer face = 0; face != NFACE; ++face) {
 					Uf[face][field][iii] *= Uf[face][rho_i][iii];
 				}
+			}
+		}
+	}
+#pragma GCC ivdep
+	for (integer iii = 0; iii != HN3; ++iii) {
+		for( integer d = 0; d != NDIM; ++d) {
+			U[egas_i][iii] += HALF * std::pow( U[sx_i + d][iii], 2 ) / U[rho_i][iii];
+			for( integer face = 0; face != NFACE; ++face) {
+				Uf[face][egas_i][iii] += HALF * std::pow( Uf[face][sx_i + d][iii], 2 ) / Uf[face][rho_i][iii];
+
 			}
 		}
 	}
@@ -454,12 +491,6 @@ void grid::store() {
 			U0[field][iii] = U[field][iii];
 		}
 	}
-	for (integer field = 0; field != NDIM; ++field) {
-#pragma GCC ivdep
-		for (integer iii = 0; iii != HN3; ++iii) {
-			S0[field][iii] = S[field][iii];
-		}
-	}
 	for (integer field = 0; field != NGF; ++field) {
 #pragma GCC ivdep
 		for (integer iii = 0; iii != HN3; ++iii) {
@@ -467,7 +498,6 @@ void grid::store() {
 		}
 	}
 	U_out0 = U_out;
-	S_out0 = S_out;
 }
 
 void grid::restore() {
@@ -477,12 +507,6 @@ void grid::restore() {
 			U[field][iii] = U0[field][iii];
 		}
 	}
-	for (integer field = 0; field != NDIM; ++field) {
-#pragma GCC ivdep
-		for (integer iii = 0; iii != HN3; ++iii) {
-			S[field][iii] = S0[field][iii];
-		}
-	}
 	for (integer field = 0; field != NGF; ++field) {
 #pragma GCC ivdep
 		for (integer iii = 0; iii != HN3; ++iii) {
@@ -490,7 +514,6 @@ void grid::restore() {
 		}
 	}
 	U_out = U_out0;
-	S_out = S_out0;
 }
 
 void grid::boundaries() {
@@ -591,8 +614,15 @@ void grid::compute_sources() {
 				src[sz_i][iii] += U[rho_i][iii] * G[gz_i][iii];
 				src[sx_i][iii] += omega * U[sy_i][iii];
 				src[sy_i][iii] -= omega * U[sx_i][iii];
-
-
+				src[zx_i][iii] = (-(F[YDIM][sz_i][iii + DNY] + F[YDIM][sz_i][iii])
+							+ (F[ZDIM][sy_i][iii + DNZ] + F[ZDIM][sy_i][iii])) * HALF;
+				src[zy_i][iii] = (+(F[XDIM][sz_i][iii + DNX] + F[XDIM][sz_i][iii])
+							- (F[ZDIM][sx_i][iii + DNZ] + F[ZDIM][sx_i][iii])) * HALF;
+				src[zz_i][iii] = (-(F[XDIM][sy_i][iii + DNX] + F[XDIM][sy_i][iii])
+							 + (F[YDIM][sx_i][iii + DNY] + F[YDIM][sx_i][iii])) * HALF;
+				src[zx_i][iii] -= omega * X[ZDIM][iii] * U[sx_i][iii];
+				src[zy_i][iii] -= omega * X[ZDIM][iii] * U[sy_i][iii];
+				src[zz_i][iii] += omega * (X[XDIM][iii] * U[sx_i][iii] + X[YDIM][iii] * U[sy_i][iii]);
 
 				src[egas_i][iii] -= omega * X[YDIM][iii] * U[rho_i][iii] * G[gx_i][iii];
 				src[egas_i][iii] += omega * X[XDIM][iii] * U[rho_i][iii] * G[gy_i][iii];
@@ -660,30 +690,6 @@ void grid::next_u(integer rk, real dt) {
 	std::vector<real> ds(NDIM, ZERO);
 	for (integer i = HBW; i != HNX - HBW; ++i) {
 		for (integer j = HBW; j != HNX - HBW; ++j) {
-			for (integer k = HBW; k != HNX - HBW; ++k) {
-				const integer iii = DNX * i + DNY * j + DNZ * k;
-				real d = (-(F[YDIM][sz_i][iii + DNY] + F[YDIM][sz_i][iii])
-						+ (F[ZDIM][sy_i][iii + DNZ] + F[ZDIM][sy_i][iii])) * HALF;
-				d -= omega * X[ZDIM][iii] * U[sx_i][iii];
-				const real s1x = S[XDIM][iii] + d * dt;
-				S[XDIM][iii] = (ONE - rk_beta[rk]) * S0[XDIM][iii] + rk_beta[rk] * s1x;
-			}
-			for (integer k = HBW; k != HNX - HBW; ++k) {
-				const integer iii = DNX * i + DNY * j + DNZ * k;
-				real d = (+(F[XDIM][sz_i][iii + DNX] + F[XDIM][sz_i][iii])
-						- (F[ZDIM][sx_i][iii + DNZ] + F[ZDIM][sx_i][iii])) * HALF;
-				d -= omega * X[ZDIM][iii] * U[sy_i][iii];
-				const real s1y = S[YDIM][iii] + d * dt;
-				S[YDIM][iii] = (ONE - rk_beta[rk]) * S0[YDIM][iii] + rk_beta[rk] * s1y;
-			}
-			for (integer k = HBW; k != HNX - HBW; ++k) {
-				const integer iii = DNX * i + DNY * j + DNZ * k;
-				real d = (-(F[XDIM][sy_i][iii + DNX] + F[XDIM][sy_i][iii])
-						 + (F[YDIM][sx_i][iii + DNY] + F[YDIM][sx_i][iii])) * HALF;
-				d += omega * (X[XDIM][iii] * U[sx_i][iii] + X[YDIM][iii] * U[sy_i][iii]);
-				const real s1z = S[ZDIM][iii] + d * dt;
-				S[ZDIM][iii] = (ONE - rk_beta[rk]) * S0[ZDIM][iii] + rk_beta[rk] * s1z;
-			}
 			for (integer field = 0; field != NF; ++field) {
 				for (integer k = HBW; k != HNX - HBW; ++k) {
 					const integer iii = DNX * i + DNY * j + DNZ * k;
@@ -763,11 +769,6 @@ void grid::next_u(integer rk, real dt) {
 		const real out0 = U_out0[field];
 		U_out[field] = (ONE - rk_beta[rk]) * out0 + rk_beta[rk] * out1;
 	}
-	for (integer field = 0; field != NDIM; ++field) {
-		const real out1 = S_out[field] + ds_out[field];
-		const real out0 = S_out0[field];
-		S_out[field] = (ONE - rk_beta[rk]) * out0 + rk_beta[rk] * out1;
-	}
 	for (integer i = HBW; i != HNX - HBW; ++i) {
 		for (integer j = HBW; j != HNX - HBW; ++j) {
 			for (integer k = HBW; k != HNX - HBW; ++k) {
@@ -792,123 +793,9 @@ void grid::next_u(integer rk, real dt) {
 	}
 }
 
-real grid::step() {
 
-	bool cfl_redo = false;
-	real cfl0 = cfl;
-	real dt, a;
-	store();
-	do {
-
-		reconstruct();
-		a = compute_fluxes();
-		compute_sources();
-		dt = cfl0 * dx / a;
-		compute_dudt();
-		next_u(0, dt);
-		egas_to_etot();
-		solve_gravity();
-		etot_to_egas();
-		boundaries();
-
-		reconstruct();
-		a = compute_fluxes();
-		compute_sources();
-		if (cfl0 * dx / a < HALF * dt) {
-			printf("REDO SUBSTEP\n");
-			cfl0 *= HALF;
-			restore();
-			cfl_redo = true;
-		} else {
-			compute_dudt();
-			next_u(1, dt);
-			egas_to_etot();
-			solve_gravity();
-			etot_to_egas();
-			boundaries();
-			cfl_redo = false;
-		}
-
-	} while (cfl_redo);
-	t += dt;
-	diagnostics();
-	++step_num;
-	return dt;
+std::vector<real> grid::conserved_outflows() const {
+	auto Uret = U_out;
+	Uret[egas_i] += Uret[pot_i];
+	return Uret;
 }
-
-void grid::diagnostics() {
-	std::vector<real> sum(NF);
-	real gx_sum = ZERO, gy_sum = ZERO, gz_sum = ZERO;
-	real glx_sum = ZERO, gly_sum = ZERO, glz_sum = ZERO;
-	real sx_sum = ZERO, sy_sum = ZERO, sz_sum = ZERO;
-	real lx_sum = ZERO, ly_sum = ZERO, lz_sum = ZERO;
-	real dV = std::pow(dx, NDIM);
-	for (integer i = HBW; i != HNX - HBW; ++i) {
-		for (integer j = HBW; j != HNX - HBW; ++j) {
-			for (integer field = 0; field != NF; ++field) {
-				for (integer k = HBW; k != HNX - HBW; ++k) {
-					const integer iii = i * DNX + j * DNY + k * DNZ;
-					sum[field] += U[field][iii] * dV;
-				}
-			}
-#pragma GCC ivdep
-			for (integer k = HBW; k != HNX - HBW; ++k) {
-				const integer iii = i * DNX + j * DNY + k * DNZ;
-				const real rho = U[rho_i][iii];
-				const real gx = G[gx_i][iii];
-				const real gy = G[gy_i][iii];
-				const real gz = G[gz_i][iii];
-				const real x = X[XDIM][iii];
-				const real y = X[YDIM][iii];
-				const real z = X[ZDIM][iii];
-				gx_sum += gx * rho * dV;
-				gy_sum += gy * rho * dV;
-				gz_sum += gz * rho * dV;
-				glx_sum += (gy * z - gz * y) * rho * dV;
-				gly_sum += (gx * z - gz * x) * rho * dV;
-				glz_sum += (gx * y - gy * x) * rho * dV;
-				lx_sum -= (z * U[sy_i][iii] - y * U[sz_i][iii]) * dV;
-				ly_sum += (z * U[sx_i][iii] - x * U[sz_i][iii]) * dV;
-				lz_sum -= (y * U[sx_i][iii] - x * U[sy_i][iii]) * dV;
-				sx_sum += S[XDIM][iii] * dV;
-				sy_sum += S[YDIM][iii] * dV;
-				sz_sum += S[ZDIM][iii] * dV;
-			}
-		}
-	}
-	sum[egas_i] += HALF * sum[pot_i];
-
-	FILE* fp = fopen("diag.dat", "at");
-	fprintf(fp, "%18.10e ", double(t));
-	for (integer field = 0; field != NF; ++field) {
-		fprintf(fp, "%18.10e %18.10e ", double(sum[field]), double(U_out[field]));
-	}
-	fprintf(fp, "\n");
-	fclose(fp);
-
-	fp = fopen("grav.dat", "at");
-	fprintf(fp, "%18.10e ", double(t));
-	fprintf(fp, "%18.10e ", double(gx_sum));
-	fprintf(fp, "%18.10e ", double(gy_sum));
-	fprintf(fp, "%18.10e ", double(gz_sum));
-	fprintf(fp, "%18.10e ", double(glx_sum));
-	fprintf(fp, "%18.10e ", double(gly_sum));
-	fprintf(fp, "%18.10e ", double(glz_sum));
-	fprintf(fp, "\n");
-	fclose(fp);
-
-	fp = fopen("l.dat", "at");
-	fprintf(fp, "%18.10e ", double(t));
-	fprintf(fp, "%18.10e ", double(lx_sum));
-	fprintf(fp, "%18.10e ", double(sx_sum));
-	fprintf(fp, "%18.10e ", double(S_out[XDIM]));
-	fprintf(fp, "%18.10e ", double(ly_sum));
-	fprintf(fp, "%18.10e ", double(sy_sum));
-	fprintf(fp, "%18.10e ", double(S_out[YDIM]));
-	fprintf(fp, "%18.10e ", double(lz_sum));
-	fprintf(fp, "%18.10e ", double(sz_sum));
-	fprintf(fp, "%18.10e ", double(S_out[ZDIM]));
-	fprintf(fp, "\n");
-	fclose(fp);
-}
-

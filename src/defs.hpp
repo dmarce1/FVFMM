@@ -57,11 +57,11 @@ const integer NDIM = 3;
 
 const integer HBW = 2;
 const integer GBW = 2;
-const integer INX = 16;
+const integer INX = 8;
 const integer HNX = 2 * HBW + INX;
 const integer GNX = 2 * GBW + INX;
 const integer HN3 = HNX * HNX * HNX;
-const integer NF = 7;
+const integer NF = 10;
 const integer NDIR = 27;
 const integer DNX = HNX * HNX;
 const integer DNY = HNX;
@@ -77,6 +77,9 @@ const integer sy_i = 3;
 const integer sz_i = 4;
 const integer tau_i = 5;
 const integer pot_i = 6;
+const integer zx_i = 7;
+const integer zy_i = 8;
+const integer zz_i = 9;
 
 const integer vx_i = sx_i;
 const integer vy_i = sy_i;

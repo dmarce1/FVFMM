@@ -75,7 +75,7 @@ std::vector<real> equal_mass_binary( real x, real y, real z) {
 	real theta;
 	real alpha = 1.0 / 15.0;
 	const real n = real(1) / (fgamma - real(1));
-	const real rho_min = 1.0e-6;
+	const real rho_min = 1.0e-12;
 	std::vector<real> u(NF, real(0));
 	const real d = 1.0/2.0;
 	real x1 = x - d;

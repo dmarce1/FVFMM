@@ -90,7 +90,6 @@ diagnostics_t node_server::diagnostics() const {
 	} else {
 		sums.grid_sum = grid_ptr->conserved_sums();
 		sums.outflow_sum = grid_ptr->conserved_outflows();
-		sums.s_sum = grid_ptr->s_sums();
 		sums.l_sum = grid_ptr->l_sums();
 	}
 	return sums;
@@ -346,18 +345,6 @@ std::vector<real> node_server::restricted_grid() const {
 					}
 					++index;
 				}
-				for( integer dim = 0; dim != NDIM; ++dim ) {
-					real& v = data[index];
-					v = ZERO;
-					for( integer di = 0; di != 2; ++di ) {
-						for( integer dj = 0; dj != 2; ++dj) {
-							for( integer dk = 0; dk != 2; ++dk) {
-								v += grid_ptr->spin_value(dim, i + di, j + dj, k + dk) / real(NCHILD);
-							}
-						}
-					}
-					++index;
-				}
 			}
 		}
 	}
@@ -378,10 +365,6 @@ void node_server::load_from_restricted_child(const std::vector<real>& data, inte
 			for( integer k = HBW; k != HNX/2; ++k) {
 				for( integer field = 0; field != NF; ++field ) {
 					grid_ptr->hydro_value(field, i + di, j + dj, k + dk) = data[index];
-					++index;
-				}
-				for( integer field = 0; field != NDIM; ++field ) {
-					grid_ptr->spin_value(field, i + di, j + dj, k + dk) = data[index];
 					++index;
 				}
 			}

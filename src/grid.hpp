@@ -49,8 +49,8 @@ private:
 	std::vector<std::vector<real>> X;
 	std::vector<std::vector<real>> G;
 	std::vector<std::vector<real>> G0;
-	std::vector<std::vector<real>> S0;
-	std::vector<std::vector<real>> S;
+	//std::vector<std::vector<real>> S0;
+	//std::vector<std::vector<real>> S;
 	std::vector<std::vector<real>> src;
 
 	std::vector<std::vector<dpair>> ilist_d_bnd;
@@ -66,8 +66,8 @@ private:
 	integer nlevel;
 	std::vector<real> U_out;
 	std::vector<real> U_out0;
-	std::vector<real> S_out;
-	std::vector<real> S_out0;
+//	std::vector<real> S_out;
+//	std::vector<real> S_out0;
 	std::vector<real> dphi_dt;
 	std::vector<std::vector<space_vector> > com;
 	std::vector<npair> ilist_n;
@@ -81,8 +81,6 @@ public:
 
 	real& hydro_value(integer, integer, integer, integer);
 	real hydro_value(integer, integer, integer, integer) const;
-	real& spin_value(integer, integer, integer, integer);
-	real spin_value(integer, integer, integer, integer) const;
 	multipole& multipole_value(integer, integer, integer, integer);
 	const multipole& multipole_value(integer, integer, integer, integer) const;
 	const space_vector& center_of_mass_value(integer, integer, integer) const;
@@ -104,8 +102,6 @@ public:
 
 	void diagnostics();
 	std::vector<real> conserved_sums() const;
-	std::vector<real> s_outflow() const;
-	std::vector<real> s_sums() const;
 	std::vector<real> l_sums() const;
 	std::vector<real> conserved_outflows() const;
 	grid(const std::function<std::vector<real>(real, real, real)>&, real dx, std::array<real, NDIM> xmin,
@@ -122,7 +118,6 @@ public:
 	void boundaries();
 	void set_physical_boundaries(integer);
 	void next_u(integer rk, real dt);
-	real step();
 	static void output(const output_list_type&, const char*);
 	output_list_type get_output_list() const;
 	template<class Archive>
@@ -135,10 +130,8 @@ public:
 		arc >> xmin;
 		allocate();
 		arc >> U;
-		arc >> S;
 		arc >> G;
 		arc >> U_out;
-		arc >> S_out;
 	}
 	template<class Archive>
 	void save(Archive& arc, const unsigned) const {
@@ -149,10 +142,8 @@ public:
 		arc << step_num;
 		arc << xmin;
 		arc << U;
-		arc << S;
 		arc << G;
 		arc << U_out;
-		arc << S_out;
 	}
 	BOOST_SERIALIZATION_SPLIT_MEMBER()
 	;
@@ -180,12 +171,12 @@ public:
 	struct grid::output_list_type {
 		std::set<node_point> nodes;
 		std::vector<zone_int_type> zones;
-		std::array<std::vector<real>, NF + NGF + NDIM> data;
+		std::array<std::vector<real>, NF + NGF> data;
 		template<class Arc>
 		void serialize(Arc& arc, unsigned int) {
 			arc & nodes;
 			arc & zones;
-			for( integer i = 0; i != NF + NGF + NDIM; ++i ) {
+			for( integer i = 0; i != NF + NGF; ++i ) {
 				arc & data[i];
 			}
 		}

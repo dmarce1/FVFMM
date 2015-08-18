@@ -65,7 +65,7 @@ void grid::merge_output_lists(grid::output_list_type& l1, grid::output_list_type
 		l1.zones[zzz] = index_map[*i];
 		++zzz;
 	}
-	for (integer field = 0; field < NF + NGF + NDIM; ++field) {
+	for (integer field = 0; field < NF + NGF; ++field) {
 		const auto l1sz = l1.data[field].size();
 		l1.data[field].resize(l1sz + l2.data[field].size());
 		std::move(l2.data[field].begin(), l2.data[field].end(), l1.data[field].begin() + l1sz);
@@ -78,9 +78,9 @@ grid::output_list_type grid::get_output_list() const {
 
 	std::set<node_point>& node_list = rc.nodes;
 	std::vector<zone_int_type>& zone_list = rc.zones;
-	std::array<std::vector<real>, NF + NGF+NDIM>& data = rc.data;
+	std::array<std::vector<real>, NF + NGF>& data = rc.data;
 
-	for (integer field = 0; field != NF + NGF + NDIM; ++field) {
+	for (integer field = 0; field != NF + NGF; ++field) {
 		data[field].resize(INX * INX * INX);
 	}
 	const integer this_bw = HBW;
@@ -117,9 +117,6 @@ grid::output_list_type grid::get_output_list() const {
 				}
 				for (integer field = 0; field != NGF; ++field) {
 					data[field + NF][di] = G[field][iii];
-				}
-				for (integer field = 0; field != NDIM; ++field) {
-					data[field + NF + NGF][di] = S[field][iii];
 				}
 				++di;
 			}
@@ -165,8 +162,8 @@ void grid::output(const output_list_type& olists, const char* filename) {
 				DBPutUcdmesh(db, "mesh", int(NDIM), coord_names, node_coords.data(), nnodes, nzones, "zones", nullptr, DB_DOUBLE,
 						nullptr);
 
-				const char* field_names[] = {"rho", "egas", "sx", "sy", "sz", "tau", "pot", "phi", "gx", "gy", "gz", "zx", "zy", "zz"};
-				for (int field = 0; field != NF + NGF + NDIM; ++field) {
+				const char* field_names[] = {"rho", "egas", "sx", "sy", "sz", "tau", "pot", "zx", "zy", "zz", "phi", "gx", "gy", "gz"};
+				for (int field = 0; field != NF + NGF; ++field) {
 					DBPutUcdvar1(db, field_names[field], "mesh", olists.data[field].data(), nzones, nullptr, 0, DB_DOUBLE, DB_ZONECENT,
 							nullptr);
 				}
@@ -191,14 +188,10 @@ std::size_t grid::load(FILE* fp) {
 	for( integer f = 0; f != NF; ++f) {
 		cnt += foo(U[f].data(), sizeof(real), U[f].size(), fp)*sizeof(real);
 	}
-	for( integer f = 0; f != NDIM; ++f) {
-		cnt += foo(S[f].data(), sizeof(real), S[f].size(), fp)*sizeof(real);
-	}
 	for( integer f = 0; f != 4; ++f) {
 		cnt += foo(G[f].data(), sizeof(real), G[f].size(), fp)*sizeof(real);
 	}
 	cnt += foo(U_out.data(), sizeof(real), U_out.size(), fp)*sizeof(real);
-	cnt += foo(S_out.data(), sizeof(real), S_out.size(), fp)*sizeof(real);
 	return cnt;
 }
 
@@ -214,14 +207,10 @@ std::size_t grid::save(FILE* fp) const {
 	for( integer f = 0; f != NF; ++f) {
 		cnt += foo(U[f].data(), sizeof(real), U[f].size(), fp)*sizeof(real);
 	}
-	for( integer f = 0; f != NDIM; ++f) {
-		cnt += foo(S[f].data(), sizeof(real), S[f].size(), fp)*sizeof(real);
-	}
 	for( integer f = 0; f != 4; ++f) {
 		cnt += foo(G[f].data(), sizeof(real), G[f].size(), fp)*sizeof(real);
 	}
 	cnt += foo(U_out.data(), sizeof(real), U_out.size(), fp)*sizeof(real);
-	cnt += foo(S_out.data(), sizeof(real), S_out.size(), fp)*sizeof(real);
 	return cnt;
 }
 

@@ -38,15 +38,6 @@ void node_server::start_run() {
 		fprintf( fp, "\n");
 		fclose(fp);
 
-		fp = fopen( "spin.dat", "at");
-		fprintf( fp, "%12.6e ", t);
-		for( integer f = 0; f != NDIM; ++f) {
-			fprintf( fp, "%15.8e ", diags.s_sum[f]);
-			fprintf( fp, "%15.8e ", diags.l_sum[f]);
-			}
-		fprintf( fp, "\n");
-		fclose(fp);
-
 #ifdef NDEBUG
 		double tstart = MPI_Wtime();
 #endif
