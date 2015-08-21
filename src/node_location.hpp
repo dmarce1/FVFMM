@@ -37,8 +37,8 @@ public:
 	bool operator <=(const node_location& other) const;
 	std::size_t unique_id() const;
 	hpx::future<void> register_client(const node_client& client) const;
-	hpx::future<hpx::id_type> get_id() const;
-	hpx::future<node_client> get_client() const;
+//	hpx::future<hpx::id_type> get_id() const;
+//	hpx::future<node_client> get_client() const;
 	bool is_physical_boundary(integer) const;
 	real x_location(integer d) const;
 	std::string to_str() const;

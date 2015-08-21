@@ -190,18 +190,18 @@ std::size_t node_location::unique_id() const {
 	}
 	return id;
 }
-
+/*
 hpx::future<node_client> node_location::get_client() const {
 	return hpx::async([](node_location loc) -> node_client {
 		auto f = hpx::find_id_from_basename("node_location", loc.unique_id());
 		return node_client(std::move(f));
 	}, *this);
-}
-
+}*/
+/*
 hpx::future<hpx::id_type> node_location::get_id() const {
 	return hpx::find_id_from_basename("node_location", unique_id());
 }
-
+*/
 bool node_location::is_physical_boundary(integer face) const {
 	bool rc = false;
 	const integer dim = face / 2;

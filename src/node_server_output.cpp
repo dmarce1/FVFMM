@@ -75,8 +75,6 @@ grid::output_list_type node_server::output_collect(const std::string& filename) 
 	grid::output_list_type olist;
 
 	while (olists.size() > 1) {
-	//	printf( "." );
-		fflush(stdout);
 		std::list<hpx::future<void>> merge_futs;
 		std::vector<grid::output_list_type> v(olists.size());
 		auto j = olists.begin();
@@ -85,14 +83,17 @@ grid::output_list_type node_server::output_collect(const std::string& filename) 
 			++j;
 		}
 		olists.clear();
+		hpx::lcos::local::spinlock list_lock;
 		for (integer i = 0; i < integer(v.size()); i += 2) {
 			if (i == integer(v.size()) - 1) {
+				hpx::lcos::local::spinlock list_lock;
 				olists.push_back(std::move(v[i]));
 			} else {
 				merge_futs.push_back( hpx::async([&](integer i1, integer i2)-> void {
 					auto list1 = std::move(v[i1]);
 					auto list2 = std::move(v[i2]);
 					grid::merge_output_lists(list1, list2);
+					std::lock_guard<hpx::lcos::local::spinlock> lock(list_lock);
 					olists.push_back(std::move(list1));
 				}, i, i + 1));
 			}
@@ -103,18 +104,13 @@ grid::output_list_type node_server::output_collect(const std::string& filename) 
 	olist = std::move(olists.front());
 	olists.clear();
 	for (auto i = futs.begin(); i != futs.end(); ++i) {
-//		printf( "+" );
 		fflush(stdout);
 		auto tmp = i->get();
 		grid::merge_output_lists(olist, tmp);
 	}
-//	printf( "*" );
-	fflush(stdout);
 
 	if (hpx::get_locality_id() == 0) {
-	//	printf( "1\n" );
 		grid::output(olist, filename.c_str());
-	//	printf( "0\n" );
 	}
 	return std::move(olist);
 }
@@ -214,7 +210,7 @@ std::pair<integer,std::size_t> node_server::save(const std::string& filename) {
 		my_system( command);
 		command = "rm -f -r " + filename + ".*\n";
 		my_system( command);
-		my_system( "rm -r -f size.tmp\n");
+		my_system( "rm -r -f size.tmp?\n");
 		printf( "Saved %i sub-grids with %lli bytes written\n", int(total_cnt), (long long)(bytes_written));
 
 	}

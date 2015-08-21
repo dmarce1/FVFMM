@@ -30,11 +30,23 @@ void node_server::start_run() {
 
 		auto diags = diagnostics();
 		FILE* fp = fopen( "diag.dat", "at");
-		fprintf( fp, "%12.6e ", t);
+		fprintf( fp, "%19.12e ", t);
 		for( integer f = 0; f != NF; ++f) {
-			fprintf( fp, "%15.8e ", diags.grid_sum[f]+diags.outflow_sum[f]);
-			fprintf( fp, "%15.8e ", diags.outflow_sum[f]);
-			}
+			fprintf( fp, "%19.12e ", diags.grid_sum[f] + diags.outflow_sum[f]);
+			fprintf( fp, "%19.12e ", diags.outflow_sum[f]);
+		}
+		for( integer f = 0; f != NDIM; ++f) {
+			fprintf( fp, "%19.12e ", diags.l_sum[f]);
+		}
+		fprintf( fp, "\n");
+		fclose(fp);
+
+		fp = fopen( "minmax.dat", "at");
+		fprintf( fp, "%19.12e ", t);
+		for( integer f = 0; f != NF; ++f) {
+			fprintf( fp, "%19.12e ", diags.field_min[f]);
+			fprintf( fp, "%19.12e ", diags.field_max[f]);
+		}
 		fprintf( fp, "\n");
 		fclose(fp);
 
@@ -99,7 +111,7 @@ int hpx_main(int argc, char* argv[]) {
 	if (argc == 1) {
 		for (integer l = 0; l < MAX_LEVEL; ++l) {
 			root_client.regrid().get();
-			printf("++++++++++++\n");
+			printf("---------------Created Level %i---------------\n", l+1 );
 		}
 	} else {
 		std::string fname(argv[1]);

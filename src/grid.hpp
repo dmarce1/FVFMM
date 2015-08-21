@@ -75,6 +75,7 @@ private:
 	static bool xpoint_eq(const xpoint& a, const xpoint& b);
 public:
 
+	std::pair<std::vector<real>,std::vector<real> > field_range() const;
 	struct output_list_type;
 	static void merge_output_lists(output_list_type& l1, output_list_type& l2);
 

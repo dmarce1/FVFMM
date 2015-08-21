@@ -91,6 +91,9 @@ diagnostics_t node_server::diagnostics() const {
 		sums.grid_sum = grid_ptr->conserved_sums();
 		sums.outflow_sum = grid_ptr->conserved_outflows();
 		sums.l_sum = grid_ptr->l_sums();
+		auto tmp = grid_ptr->field_range();
+		sums.field_min = std::move(tmp.first);
+		sums.field_max = std::move(tmp.second);
 	}
 	return sums;
 }
@@ -420,8 +423,6 @@ integer node_server::regrid_gather() {
 		if (grid_ptr->refine_me(my_location.level())) {
 			count += NCHILD;
 
-			/* Inefficient, only needs to be done once - rewrite*/
-			me = my_location.get_client().get();
 
 			children.resize(NCHILD);
 			std::vector<node_location> clocs(NCHILD);

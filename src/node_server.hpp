@@ -21,24 +21,29 @@ const integer OUTER = 1;
 struct diagnostics_t {
 	std::vector<real> grid_sum;
 	std::vector<real> outflow_sum;
+	std::vector<real> field_max;
+	std::vector<real> field_min;
 	std::vector<real> l_sum;
-	std::vector<real> s_sum;
-	diagnostics_t() : grid_sum(NF,ZERO), outflow_sum(NF,ZERO), l_sum(NDIM), s_sum(NDIM){}
+	diagnostics_t() : grid_sum(NF,ZERO), outflow_sum(NF,ZERO), l_sum(NDIM), field_max(NF,-std::numeric_limits<real>::max()), field_min(NF,+std::numeric_limits<real>::max()){
+		NULL;
+	}
 	diagnostics_t& operator+=(const diagnostics_t& other) {
 		for( integer f = 0; f != NF; ++f) {
 			grid_sum[f] += other.grid_sum[f];
 			outflow_sum[f] += other.outflow_sum[f];
+			field_max[f] = std::max(field_max[f], other.field_max[f]);
+			field_min[f] = std::min(field_min[f], other.field_min[f]);
 		}
 		for( integer d = 0; d != NDIM; ++d) {
 			l_sum[d] += other.l_sum[d];
-			s_sum[d] += other.s_sum[d];
 		}
 		return *this;
 	}
 	diagnostics_t& operator=(const diagnostics_t& other) {
+			field_max = other.field_max;
+			field_min = other.field_min;
 			grid_sum = other.grid_sum;
 			outflow_sum = other.outflow_sum;
-			s_sum = other.s_sum;
 			l_sum = other.l_sum;
 			return *this;
 	};
@@ -47,7 +52,8 @@ struct diagnostics_t {
 		arc & grid_sum;
 		arc & outflow_sum;
 		arc & l_sum;
-		arc & s_sum;
+		arc & field_max;
+		arc & field_min;
 	}
 };
 
