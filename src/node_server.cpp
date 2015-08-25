@@ -200,11 +200,11 @@ real node_server::step() {
 			grid_ptr->next_u(rk, dt);
 		}
 		compute_fmm(RHO, true, 2 * rk + 1);
-		auto interlevel_fut = exchange_interlevel_hydro_data(rk);
-		interlevel_fut.get();
-//		if( !is_refined ) {
+//		auto interlevel_fut = exchange_interlevel_hydro_data(rk);
+//		interlevel_fut.get();
+		if( !is_refined ) {
 			collect_hydro_boundaries(rk);
-//		}
+		}
 	}
 	hpx::wait_all(child_futs.begin(), child_futs.end());
 
