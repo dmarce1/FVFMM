@@ -128,7 +128,7 @@ grid::output_list_type grid::get_output_list() const {
 
 void grid::output(const output_list_type& olists, const char* filename) {
 
-	std::thread(
+	boost::thread(
 			[&]() {
 				const std::set<node_point>& node_list = olists.nodes;
 				const std::vector<zone_int_type>& zone_list = olists.zones;

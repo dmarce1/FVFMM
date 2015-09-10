@@ -8,8 +8,13 @@
 #include "node_server.hpp"
 #include "node_client.hpp"
 
-HPX_PLAIN_ACTION(node_server::output_collect, output_collect_action_type);
-HPX_PLAIN_ACTION(node_server::output_form, output_form_action_type);
+
+//HPX_PLAIN_ACTION(node_server::output_collect, output_collect_action_type);
+//HPX_PLAIN_ACTION(node_server::output_form, output_form_action_type);
+
+//HPX_PLAIN_ACTION(node_server::save, save_action2);
+
+//HPX_ACTION_USES_HUGE_STACK(output_collect_action_type);
 
 void node_server::start_run() {
 
@@ -24,7 +29,6 @@ void node_server::start_run() {
 
 	node_server* root_ptr = me.get_ptr().get();
 
-	hpx::future<void> output_done = hpx::make_ready_future();
 	output_cnt = root_ptr->get_time() / output_dt;
 	while (true) {
 
@@ -53,14 +57,13 @@ void node_server::start_run() {
 #ifdef NDEBUG
 		double tstart = MPI_Wtime();
 #endif
-		if (t / output_dt >= output_cnt) {
-			output_done.get();
+		if (t / output_dt >= output_cnt ) {
 			char* fname;
 
 			printf("--- begin checkpoint ---\n");
 			if (asprintf(&fname, "X.%i.chk", int(output_cnt))) {
 			}
-			save_action()(hpx::find_all_localities()[0], fname);
+			save(0, std::string(fname));
 			printf("--- end checkpoint ---\n");
 			free(fname);
 
@@ -68,22 +71,17 @@ void node_server::start_run() {
 			}
 			++output_cnt;
 			printf("--- begin output ---\n");
-			hpx::async < output_form_action_type > (hpx::find_here()).get();
-			printf("--- middle output ---\n");
-			std::string _fname = fname;
-			output_done = (hpx::async < output_collect_action_type > (hpx::find_here(), std::move(_fname))).then(
-					[](hpx::future<grid::output_list_type>&& fut) -> void {
-						fut.get();
-						printf("--- end output ---\n");
-					});
-
+			output(std::string(fname));
+			printf("--- end output ---\n");
 			free(fname);
 
 			if (asprintf(&fname, "X.%i.silo", int(output_cnt))) {
 			}
 			free(fname);
 		}
-		real dt = step();
+		auto ts_fut = hpx::async([=](){return timestep_driver();});
+		step();
+		real dt = ts_fut.get();
 		fp = fopen( "step.dat", "at");
 #ifdef NDEBUG
 		printf("%i %e %e %e\n", int(step_num), double(t), double(dt), MPI_Wtime() - tstart);
@@ -100,18 +98,18 @@ void node_server::start_run() {
 }
 
 int hpx_main(int argc, char* argv[]) {
-#ifndef NDEBUG
+//#ifndef NDEBUG
 	feenableexcept(FE_DIVBYZERO);
 	feenableexcept(FE_INVALID);
 	feenableexcept(FE_OVERFLOW);
-#endif
-	node_client root_id = node_client::create(hpx::find_here());
+//#endif
+	node_client root_id = hpx::new_<node_server>(hpx::find_here());
 	node_client root_client(root_id);
 
 	if (argc == 1) {
 		for (integer l = 0; l < MAX_LEVEL; ++l) {
 			root_client.regrid().get();
-			printf("---------------Created Level %i---------------\n", l+1 );
+			printf("---------------Created Level %i---------------\n", int(l+1) );
 		}
 	} else {
 		std::string fname(argv[1]);
@@ -121,12 +119,12 @@ int hpx_main(int argc, char* argv[]) {
 		printf( "Done. \n");
 	}
 
-	std::vector < hpx::shared_future < hpx::id_type >> null_sibs(NFACE);
-	for (integer si = 0; si != NFACE; ++si) {
-		null_sibs[si] = hpx::make_ready_future(hpx::invalid_id).share();
-	}
+	std::vector < hpx::id_type > null_sibs(NFACE);
+	printf("Forming tree connections------------\n");
 	root_client.form_tree(root_client.get_gid(), hpx::invalid_id, null_sibs).get();
-	printf("------------\n");
+	printf("...done\nWaiting 3 seconds...\n");
+
+	sleep(3);
 
 	root_client.start_run().get();
 

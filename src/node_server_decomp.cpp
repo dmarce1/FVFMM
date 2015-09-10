@@ -19,8 +19,8 @@ void node_server::collect_hydro_boundaries(integer rk) {
 		for (integer face = 2 * dim; face != 2 * dim + 2; ++face) {
 			is_physical[face] = my_location.is_physical_boundary(face);
 			if (!is_physical[face]) {
-				const auto bdata = get_hydro_boundary(face);
-				send_futs.push_back(siblings[face].send_hydro_boundary(bdata, rk, face ^ 1));
+				auto bdata = get_hydro_boundary(face);
+				send_futs.push_back(siblings[face].send_hydro_boundary(std::move(bdata), rk, face ^ 1));
 			}
 		}
 		for (integer face = 2 * dim; face != 2 * dim + 2; ++face) {

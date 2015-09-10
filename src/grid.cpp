@@ -216,6 +216,7 @@ void grid::allocate() {
 
 grid::grid() : U(NF), U0(NF), dUdt(NF), Uf(NFACE), F(NDIM), X(NDIM), G(NGF), G0(NGF), src(NF), ilist_d_bnd(NFACE), ilist_n_bnd(NFACE)
 {
+	;
 }
 
 grid::grid(const std::function<std::vector<real>(real, real, real)>& init_func, real _dx, std::array<real, NDIM> _xmin,
@@ -505,8 +506,6 @@ void grid::set_physical_boundaries(integer face) {
 	const integer dnk = DN[face / 2];
 	const integer klb = face % 2 == 0 ? 0 : HNX - HBW;
 	const integer kub = face % 2 == 0 ? HBW : HNX;
-	const integer klb2 = face % 2 == 0 ? 0 : HNX - 2*HBW;
-	const integer kub2 = face % 2 == 0 ? 2*HBW : HNX;
 /*
 	for (integer k = klb2; k != kub2; ++k) {
 		for (integer j = HBW; j != HNX - HBW; ++j) {
@@ -771,10 +770,10 @@ void grid::next_u(integer rk, real dt) {
 					U[tau_i][iii] = std::pow(ei, ONE / fgamma);
 				}
 				if( U[tau_i][iii] < ZERO ) {
-					printf( "Tau is negative\n");
+					printf( "Tau is negative- %e\n",  U[tau_i][iii]);
 					abort();
 				} else if( U[rho_i][iii] <= ZERO ) {
-					printf( "Rho is non-positive\n");
+					printf( "Rho is non-positive - %e\n",  U[rho_i][iii]);
 					abort();
 				}
 			}

@@ -21,11 +21,10 @@ const integer OUTER = 1;
 struct diagnostics_t {
 	std::vector<real> grid_sum;
 	std::vector<real> outflow_sum;
+	std::vector<real> l_sum;
 	std::vector<real> field_max;
 	std::vector<real> field_min;
-	std::vector<real> l_sum;
 	diagnostics_t() : grid_sum(NF,ZERO), outflow_sum(NF,ZERO), l_sum(NDIM), field_max(NF,-std::numeric_limits<real>::max()), field_min(NF,+std::numeric_limits<real>::max()){
-		NULL;
 	}
 	diagnostics_t& operator+=(const diagnostics_t& other) {
 		for( integer f = 0; f != NF; ++f) {
@@ -57,7 +56,7 @@ struct diagnostics_t {
 	}
 };
 
-class node_server: public hpx::components::simple_component_base<node_server> {
+class node_server: public hpx::components::managed_component_base<node_server> {
 private:
 	node_location my_location;
 	integer step_num;
@@ -89,9 +88,6 @@ public:
 	}
 
 
-
-	static std::pair<integer,std::size_t> save(const std::string& filename);
-
 	static void load(const std::string& filename, node_client root);
 
 	node_server(node_location&&, integer, bool, real, std::array<integer,NCHILD>&&, grid&&, const std::vector<hpx::id_type>&);
@@ -105,22 +101,13 @@ private:
 	std::array<std::array<std::shared_ptr<channel<std::vector<real>>> ,NFACE>,4> sibling_gravity_channels;
 	std::array<std::array<std::shared_ptr<channel<std::vector<real> >>, NCHILD>,NRK> child_hydro_channels;
 	std::array<std::array<std::shared_ptr<channel<multipole_pass_type>>, NCHILD>,4> child_gravity_channels;
+
 	std::shared_ptr<channel<real>> global_timestep_channel;
+	std::shared_ptr<channel<real>> local_timestep_channel;
 
-	std::list<const node_server*>::iterator my_list_iterator;
 
-	static std::list<const node_server*> local_node_list;
-	static hpx::lcos::local::spinlock local_node_list_lock;
-
-	static integer local_node_count;
-	static hpx::lcos::local::spinlock timestep_lock;
-	static integer timestep_node_count;
-	static real local_timestep;
 	static bool static_initialized;
 	static std::atomic<integer> static_initializing;
-	static std::shared_ptr<channel<real>> local_timestep_channel;
-
-	static void reduce_this_timestep(double dt);
 
 	void initialize(real);
 	void collect_hydro_boundaries(integer rk);
@@ -130,15 +117,8 @@ private:
 
 public:
 
-	static void output_form();
-
-	static grid::output_list_type output_collect(const std::string&);
-
-	static 	std::list<grid::output_list_type> olists;
-
-
-	static real get_local_timestep();
-	static void set_global_timestep(real);
+//	static void output_form();
+//	static grid::output_list_type output_collect(const std::string&);
 
 	node_server();
 	~node_server();
@@ -175,7 +155,7 @@ public:
 	void recv_gravity_expansions(expansion_pass_type&&, integer);
 	HPX_DEFINE_COMPONENT_ACTION(node_server, recv_gravity_expansions, send_gravity_expansions_action);
 
-	real step();
+	void step();
 	HPX_DEFINE_COMPONENT_ACTION(node_server, step, step_action);
 
 	void regrid();
@@ -189,6 +169,15 @@ public:
 	void start_run();
 	HPX_DEFINE_COMPONENT_ACTION(node_server, start_run, start_run_action);
 
+	real timestep_driver();
+	HPX_DEFINE_COMPONENT_ACTION(node_server, timestep_driver, timestep_driver_action);
+
+	real timestep_driver_descend();
+	HPX_DEFINE_COMPONENT_ACTION(node_server, timestep_driver_descend, timestep_driver_descend_action);
+
+	void timestep_driver_ascend(real);
+	HPX_DEFINE_COMPONENT_ACTION(node_server, timestep_driver_ascend, timestep_driver_ascend_action);
+
 	hpx::future<hpx::id_type> copy_to_locality(const hpx::id_type& );
 	HPX_DEFINE_COMPONENT_ACTION(node_server, copy_to_locality, copy_to_locality_action);
 
@@ -199,7 +188,7 @@ public:
 	HPX_DEFINE_COMPONENT_ACTION(node_server, get_sibling_clients, get_sibling_clients_action);
 
 
-	void form_tree(const hpx::id_type&, const hpx::id_type&, const std::vector<hpx::shared_future<hpx::id_type>>& );
+	void form_tree(const hpx::id_type&, const hpx::id_type&, const std::vector<hpx::id_type>& );
 	HPX_DEFINE_COMPONENT_ACTION(node_server, form_tree, form_tree_action);
 
 	hpx::id_type load_node( std::size_t, const std::string&, const node_location&, const hpx::id_type& );
@@ -211,10 +200,21 @@ public:
 	diagnostics_t diagnostics() const;
 	HPX_DEFINE_COMPONENT_ACTION(node_server, diagnostics, diagnostics_action);
 
+	grid::output_list_type output(std::string fname) const;
+	HPX_DEFINE_COMPONENT_ACTION(node_server, output, output_action);
+
+	std::pair<std::size_t,std::size_t> save(integer loc_id, std::string fname) const;
+	HPX_DEFINE_COMPONENT_ACTION(node_server, save, save_action);
+
+
 };
 
-
+HPX_REGISTER_ACTION_DECLARATION( node_server::save_action);
 HPX_REGISTER_ACTION_DECLARATION( node_server::regrid_gather_action);
+HPX_REGISTER_ACTION_DECLARATION( node_server::output_action);
+HPX_REGISTER_ACTION_DECLARATION( node_server::timestep_driver_action);
+HPX_REGISTER_ACTION_DECLARATION( node_server::timestep_driver_ascend_action);
+HPX_REGISTER_ACTION_DECLARATION( node_server::timestep_driver_descend_action);
 HPX_REGISTER_ACTION_DECLARATION( node_server::regrid_scatter_action);
 HPX_REGISTER_ACTION_DECLARATION( node_server::send_hydro_boundary_action);
 HPX_REGISTER_ACTION_DECLARATION( node_server::send_gravity_boundary_action);
@@ -231,6 +231,8 @@ HPX_REGISTER_ACTION_DECLARATION( node_server::form_tree_action);
 HPX_REGISTER_ACTION_DECLARATION( node_server::get_ptr_action);
 HPX_REGISTER_ACTION_DECLARATION( node_server::diagnostics_action);
 
-HPX_DEFINE_PLAIN_ACTION(node_server::save, save_action);
+
+
+
 
 #endif /* NODE_SERVER_HPP_ */

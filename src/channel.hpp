@@ -1,3 +1,10 @@
+/*
+ * channel.hpp
+ *
+ *  Created on: Jun 19, 2015
+ *      Author: dmarce1
+ */
+
 #ifndef CHANNEL_HPP_
 #define CHANNEL_HPP_
 
@@ -41,7 +48,7 @@ public:
 
 	T get() {
 		T data = future.get();
-		promise.reset();
+		promise = hpx::promise<T>();
 		future = promise.get_future();
 #ifndef NDEBUG
 		set = false;

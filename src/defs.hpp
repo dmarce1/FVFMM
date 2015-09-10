@@ -8,8 +8,12 @@
 
 #ifndef TYPES444_HPP_
 #define TYPES444_HPP_
-
+#ifdef MINI_HPX
+#include "../hpx/hpx.hpp"
+#else
 #include <hpx/hpx.hpp>
+#endif
+
 
 #include <array>
 #include <vector>
@@ -50,7 +54,7 @@ void serialize(Archive & ar, std::array<T,N> & a, const unsigned int version)
 
 const real DEFAULT_OMEGA = 0.142194022;
 
-const integer MAX_LEVEL = 4;
+const integer MAX_LEVEL = 5;
 enum boundary_type {OUTFLOW, REFLECT};
 
 const integer NDIM = 3;
