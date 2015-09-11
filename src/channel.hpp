@@ -13,47 +13,47 @@
 template<class T>
 class channel {
 private:
-#ifndef NDEBUG
-	bool set;
-#endif
-	hpx::future<T> future;
-	hpx::promise<T> promise;
+	std::list<std::shared_ptr<hpx::promise<T>>> pq;
+	std::list<std::shared_ptr<hpx::future<T>>> fq;
+	using mutex_type = 	hpx::lcos::local::spinlock;
+	mutex_type mtx;
+
+	void add_promise() {
+		auto p_ptr = std::make_shared<hpx::promise<T>>();
+		auto f_ptr = std::make_shared<hpx::future<T>>(p_ptr->get_future());
+		pq.push_back(p_ptr);
+		fq.push_back(f_ptr);
+	}
+
 public:
 	channel() {
-#ifndef NDEBUG
-		set = false;
-#endif
-		future = promise.get_future();
+		boost::lock_guard<mutex_type> lock(mtx);
+		add_promise();
 	}
 	~channel() = default;
 	channel(const channel&) = delete;
-	channel(channel&& other ) {
-		future = std::move(other.future);
-		promise = std::move(other.promise);
-	}
-	channel& operator=(channel&& other ) {
-		future = std::move(other.future);
-		promise = std::move(other.promise);
-		return *this;
-	}
+	channel(channel&& other ) = delete;
+	channel& operator=(channel&& other ) = delete;
 
-	template<class U>
-	void set_value( U value ) {
-		assert(!set);
-		promise.set_value(value);
-#ifndef NDEBUG
-		set = true;
-#endif
+	void set_value( T value ) {
+		std::shared_ptr<hpx::promise<T>> p_ptr;
+		{
+			boost::lock_guard<mutex_type> lock(mtx);
+			p_ptr = *(pq.begin());
+			pq.pop_front();
+		}
+		p_ptr->set_value(std::move(value));
 	}
 
 	T get() {
-		T data = future.get();
-		promise = hpx::promise<T>();
-		future = promise.get_future();
-#ifndef NDEBUG
-		set = false;
-#endif
-		return data;
+		std::shared_ptr<hpx::future<T>> f_ptr;
+		{
+			boost::unique_lock<mutex_type> lock(mtx);
+			f_ptr = *(fq.begin());
+			fq.pop_front();
+			add_promise();
+		}
+		return f_ptr->get();
 	}
 
 };

@@ -159,7 +159,9 @@ void node_server::form_tree(const hpx::id_type& self_gid, const hpx::id_type& pa
 			}
 			cfuts.push_back(children[ci].form_tree(children[ci].get_gid(), me.get_gid(), std::move(child_sibs)));
 		}
-		hpx::wait_all(cfuts.begin(), cfuts.end());
+		for( auto i = cfuts.begin(); i != cfuts.end(); ++i) {
+			i->get();
+		}
 	}
 
 }
@@ -242,7 +244,9 @@ void node_server::step() {
 			collect_hydro_boundaries(rk);
 		}
 	}
-	hpx::wait_all(child_futs.begin(), child_futs.end());
+	for( auto i = child_futs.begin(); i != child_futs.end(); ++i) {
+		i->get();
+	}
 
 	++step_num;
 }
@@ -483,7 +487,9 @@ void node_server::regrid_scatter(integer a_, integer total) {
 	}
 	clear_family();
 	if (is_refined) {
-		hpx::wait_all(futs.begin(), futs.end());
+		for( auto i = futs.begin(); i != futs.end(); ++i) {
+			i->get();
+		}
 	}
 }
 
@@ -506,7 +512,9 @@ void node_server::solve_gravity(bool ene, integer c) {
 	}
 	compute_fmm(RHO, ene, c);
 	if (is_refined) {
-		hpx::wait_all(child_futs.begin(), child_futs.end());
+		for( auto i = child_futs.begin(); i != child_futs.end(); ++i) {
+			i->get();
+		}
 	}
 }
 
@@ -541,17 +549,25 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, integer gch
 	} else {
 		m_out = grid_ptr->compute_multipoles(type);
 	}
+
+	hpx::future<void> send_gravity_multipoles_fut;
 	if (my_location.level() != 0) {
-		parent.send_gravity_multipoles(std::move(m_out), my_location.get_child_index(), gchannel);
+		send_gravity_multipoles_fut = parent.send_gravity_multipoles(std::move(m_out), my_location.get_child_index(), gchannel);
+	} else {
+		send_gravity_multipoles_fut = hpx::make_ready_future();
 	}
+
 	grid_ptr->compute_interactions(type);
+	send_gravity_multipoles_fut.get();
 
 //	if( my_location.level() == 3 ) printf( "1\n");
 
+
 	for (integer dim = 0; dim != NDIM; ++dim) {
+		std::list<hpx::future<void>> sibling_futs;
 		for (integer si = 2 * dim; si != 2 * (dim + 1); ++si) {
 			if (!my_location.is_physical_boundary(si)) {
-				siblings[si].send_gravity_boundary(get_gravity_boundary(si), si ^ 1, gchannel);
+				sibling_futs.push_back(siblings[si].send_gravity_boundary(get_gravity_boundary(si), si ^ 1, gchannel));
 			}
 		}
 		for (integer si = 2 * dim; si != 2 * (dim + 1); ++si) {
@@ -559,6 +575,9 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, integer gch
 				const std::vector<real> tmp = this->sibling_gravity_channels[gchannel][si]->get();
 				this->set_gravity_boundary(std::move(tmp), si);
 			}
+		}
+		for( auto i = sibling_futs.begin(); i != sibling_futs.end(); ++i) {
+			i->get();
 		}
 	}
 	for (integer dim = 0; dim != NDIM; ++dim) {
@@ -577,6 +596,7 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, integer gch
 	}
 	const expansion_pass_type ltmp = grid_ptr->compute_expansions(type, my_location.level() == 0 ? nullptr : &l_in);
 	if (is_refined) {
+		std::list<hpx::future<void>> child_futs;
 		for (integer ci = 0; ci != NCHILD; ++ci) {
 			expansion_pass_type l_out;
 			l_out.first.resize(INX * INX * INX / NCHILD);
@@ -599,7 +619,10 @@ void node_server::compute_fmm(gsolve_type type, bool energy_account, integer gch
 					}
 				}
 			}
-			children[ci].send_gravity_expansions(std::move(l_out), gchannel);
+			child_futs.push_back(children[ci].send_gravity_expansions(std::move(l_out), gchannel));
+		}
+		for( auto i = child_futs.begin(); i != child_futs.end(); ++i) {
+			i->get();
 		}
 	}
 

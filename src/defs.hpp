@@ -22,7 +22,6 @@ typedef double real;
 typedef long long int integer;
 typedef char byte;
 
-#define USE_SIMD
 
 enum gsolve_type {
 	RHO, DRHODT
@@ -54,7 +53,7 @@ void serialize(Archive & ar, std::array<T,N> & a, const unsigned int version)
 
 const real DEFAULT_OMEGA = 0.142194022;
 
-const integer MAX_LEVEL = 5;
+const integer MAX_LEVEL = 5 ;
 enum boundary_type {OUTFLOW, REFLECT};
 
 const integer NDIM = 3;

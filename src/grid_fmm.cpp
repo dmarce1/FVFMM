@@ -186,13 +186,15 @@ void grid::compute_interactions(gsolve_type type) {
 			const integer iii0 = ilist_d[li + i].first;
 			const integer iii1 = ilist_d[li + i].second;
 			L[lev][iii0]() += phi0[i];
-			L[lev][iii0](XDIM) += gx0[i];
-			L[lev][iii0](YDIM) += gy0[i];
-			L[lev][iii0](ZDIM) += gz0[i];
 			L[lev][iii1]() += phi1[i];
-			L[lev][iii1](XDIM) += gx1[i];
-			L[lev][iii1](YDIM) += gy1[i];
-			L[lev][iii1](ZDIM) += gz1[i];
+			if( type == RHO ) {
+				L[lev][iii1](XDIM) += gx1[i];
+				L[lev][iii1](YDIM) += gy1[i];
+				L[lev][iii1](ZDIM) += gz1[i];
+				L[lev][iii0](XDIM) += gx0[i];
+				L[lev][iii0](YDIM) += gy0[i];
+				L[lev][iii0](ZDIM) += gz0[i];
+			}
 		}
 	}
 }
@@ -331,9 +333,11 @@ void grid::compute_boundary_interactions(gsolve_type type, integer face) {
 		for (integer i = 0; i != simd_len && i + li < dsize; ++i) {
 			const integer iii0 = ilist_d_bnd[face][li + i].first;
 			L[lev][iii0]() += phi0[i];
-			L[lev][iii0](XDIM) += gx0[i];
-			L[lev][iii0](YDIM) += gy0[i];
-			L[lev][iii0](ZDIM) += gz0[i];
+			if (type == RHO) {
+				L[lev][iii0](XDIM) += gx0[i];
+				L[lev][iii0](YDIM) += gy0[i];
+				L[lev][iii0](ZDIM) += gz0[i];
+			}
 		}
 	}
 }

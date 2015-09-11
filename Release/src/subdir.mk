@@ -56,7 +56,7 @@ CPP_DEPS += \
 src/%.o: ../src/%.cpp
 	@echo 'Building file: $<'
 	@echo 'Invoking: GCC C++ Compiler'
-	mpic++ -DNDEBUG -O3 -ffast-math -Wall -march=native -c -fmessage-length=0 `pkg-config --cflags hpx_application` -std=c++11 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
+	mpic++ -g -DNDEBUG -O3 -ffast-math -Wall -march=native -c -fmessage-length=0 `pkg-config --cflags hpx_application` -std=c++11 -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -o "$@" "$<"
 	@echo 'Finished building: $<'
 	@echo ' '
 

@@ -101,7 +101,7 @@
 							<targetPlatform id="cdt.managedbuild.target.gnu.platform.exe.release.1127426250" name="Debug Platform" superClass="cdt.managedbuild.target.gnu.platform.exe.release"/>
 							<builder buildPath="${workspace_loc:/FVFMM/Release}" id="cdt.managedbuild.target.gnu.builder.exe.release.742888906" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Gnu Make Builder" parallelBuildOn="true" parallelizationNumber="8" superClass="cdt.managedbuild.target.gnu.builder.exe.release"/>
 							<tool id="cdt.managedbuild.tool.gnu.archiver.base.867836275" name="GCC Archiver" superClass="cdt.managedbuild.tool.gnu.archiver.base"/>
-							<tool command="mpic++" id="cdt.managedbuild.tool.gnu.cpp.compiler.exe.release.139903845" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.exe.release">
+							<tool command="mpic++ -g" id="cdt.managedbuild.tool.gnu.cpp.compiler.exe.release.139903845" name="GCC C++ Compiler" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.exe.release">
 								<option id="gnu.cpp.compiler.exe.release.option.optimization.level.129779700" name="Optimization Level" superClass="gnu.cpp.compiler.exe.release.option.optimization.level" value="gnu.cpp.compiler.optimization.level.most" valueType="enumerated"/>
 								<option id="gnu.cpp.compiler.exe.release.option.debugging.level.1867001369" name="Debug Level" superClass="gnu.cpp.compiler.exe.release.option.debugging.level" value="gnu.cpp.compiler.debugging.level.none" valueType="enumerated"/>
 								<option id="gnu.cpp.compiler.option.other.other.831821945" name="Other flags" superClass="gnu.cpp.compiler.option.other.other" value="-march=native -c -fmessage-length=0 `pkg-config --cflags hpx_application` -std=c++11" valueType="string"/>

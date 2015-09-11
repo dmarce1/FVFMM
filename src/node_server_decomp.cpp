@@ -32,7 +32,9 @@ void node_server::collect_hydro_boundaries(integer rk) {
 			}
 		}
 	}
-	hpx::wait_all(send_futs.begin(), send_futs.end());
+	for( auto i = send_futs.begin(); i != send_futs.end(); ++i) {
+		i->get();
+	}
 }
 
 integer node_server::get_boundary_size(std::array<integer, NDIM>& lb, std::array<integer, NDIM>& ub, integer face,

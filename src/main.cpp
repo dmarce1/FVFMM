@@ -8,6 +8,18 @@
 #include "node_server.hpp"
 #include "node_client.hpp"
 
+void install_stack_trace();
+
+
+
+void initialize() {
+	feenableexcept(FE_DIVBYZERO);
+	feenableexcept(FE_INVALID);
+	feenableexcept(FE_OVERFLOW);
+	install_stack_trace();
+}
+
+HPX_PLAIN_ACTION( initialize, initialize_action);
 
 //HPX_PLAIN_ACTION(node_server::output_collect, output_collect_action_type);
 //HPX_PLAIN_ACTION(node_server::output_form, output_form_action_type);
@@ -98,10 +110,15 @@ void node_server::start_run() {
 }
 
 int hpx_main(int argc, char* argv[]) {
-//#ifndef NDEBUG
-	feenableexcept(FE_DIVBYZERO);
-	feenableexcept(FE_INVALID);
-	feenableexcept(FE_OVERFLOW);
+	auto all_locs = hpx::find_all_localities();
+	std::list<hpx::future<void>> futs;
+	for( auto i = all_locs.begin(); i != all_locs.end(); ++i) {
+		futs.push_back(hpx::async<initialize_action>(*i));
+	}
+	for( auto i = futs.begin(); i != futs.end(); ++i ) {
+		i->get();
+	}
+	//#ifndef NDEBUG
 //#endif
 	node_client root_id = hpx::new_<node_server>(hpx::find_here());
 	node_client root_client(root_id);

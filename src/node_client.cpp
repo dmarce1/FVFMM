@@ -91,21 +91,21 @@ hpx::future<void> node_client::send_hydro_boundary(std::vector<real>&& data, int
 	return hpx::async<typename node_server::send_hydro_boundary_action>(get_gid(), std::move(data), rk, face);
 }
 
-void node_client::send_gravity_boundary(std::vector<real>&& data, integer face, integer c) const {
-	hpx::apply<typename node_server::send_gravity_boundary_action>(get_gid(), std::move(data), face, c);
+hpx::future<void> node_client::send_gravity_boundary(std::vector<real>&& data, integer face, integer c) const {
+	return hpx::async<typename node_server::send_gravity_boundary_action>(get_gid(), std::move(data), face, c);
 }
 
-void node_client::send_gravity_multipoles( multipole_pass_type&& data, integer ci, integer c) const {
-	hpx::apply<typename node_server::send_gravity_multipoles_action>(get_gid(), std::move(data), ci, c);
+hpx::future<void> node_client::send_gravity_multipoles( multipole_pass_type&& data, integer ci, integer c) const {
+	return hpx::async<typename node_server::send_gravity_multipoles_action>(get_gid(), std::move(data), ci, c);
 }
 
-void node_client::send_hydro_children( std::vector<real>&& data, integer rk, integer ci) const {
-	hpx::apply<typename node_server::send_hydro_children_action>(get_gid(), std::move(data), rk, ci);
+hpx::future<void>node_client::send_hydro_children( std::vector<real>&& data, integer rk, integer ci) const {
+	return hpx::async<typename node_server::send_hydro_children_action>(get_gid(), std::move(data), rk, ci);
 }
 
 
-void node_client::send_gravity_expansions( expansion_pass_type&& data, integer c) const {
-	hpx::apply<typename node_server::send_gravity_expansions_action>(get_gid(), std::move(data), c);
+hpx::future<void> node_client::send_gravity_expansions( expansion_pass_type&& data, integer c) const {
+	return hpx::async<typename node_server::send_gravity_expansions_action>(get_gid(), std::move(data), c);
 }
 
 hpx::future<void> node_client::step() const {

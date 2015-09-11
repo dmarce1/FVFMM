@@ -51,7 +51,7 @@ public:
 	node_client(hpx::id_type _id ) {
 		id = _id;
 	}
-	void send_hydro_children( std::vector<real>&&, integer rk, integer ci) const;
+	hpx::future<void> send_hydro_children( std::vector<real>&&, integer rk, integer ci) const;
 	hpx::future<hpx::id_type> load_node(std::size_t fpos, const std::string& fname, const node_location&, const hpx::id_type& );
 	hpx::future<diagnostics_t> diagnostics() const;
 	node_client();
@@ -64,9 +64,9 @@ public:
 	//hpx::future<void> unregister(const node_location&) const;
 	hpx::future<integer> regrid_gather() const;
 	hpx::future<void> send_hydro_boundary(std::vector<real>&&, integer rk, integer face) const;
-	void send_gravity_boundary(std::vector<real>&&, integer face, integer) const;
-	void send_gravity_multipoles(multipole_pass_type&&, integer ci, integer) const;
-	void send_gravity_expansions(expansion_pass_type&&, integer) const;
+	hpx::future<void> send_gravity_boundary(std::vector<real>&&, integer face, integer) const;
+	hpx::future<void> send_gravity_multipoles(multipole_pass_type&&, integer ci, integer) const;
+	hpx::future<void> send_gravity_expansions(expansion_pass_type&&, integer) const;
 	hpx::future<void> step() const;
 	hpx::future<void> start_run() const;
 	hpx::future<void> regrid() const;

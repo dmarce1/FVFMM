@@ -20,14 +20,13 @@
 
 void handler(int sig) {
   void *array[10];
-  size_t size;
+  size_t size = 10;
 
-  // get void*'s for all entries on the stack
-  size = backtrace(array, 10);
 
   // print out all the frames to stderr
   fprintf(stderr, "Error: signal %d:\n", sig);
   backtrace_symbols_fd(array, size, STDERR_FILENO);
+  sleep(360);
   exit(1);
 }
 
