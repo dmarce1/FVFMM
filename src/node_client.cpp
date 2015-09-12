@@ -28,7 +28,9 @@ hpx::future<diagnostics_t> node_client::diagnostics() const {
 
 
 hpx::future<node_server*> node_client::get_ptr() const	{
-	return hpx::async<typename node_server::get_ptr_action>(get_gid());
+	return hpx::async<typename node_server::get_ptr_action>(get_gid()).then([](hpx::future<std::uintptr_t>&& fut){
+		return reinterpret_cast<node_server*>(fut.get());
+	});
 }
 
 node_client::node_client() {

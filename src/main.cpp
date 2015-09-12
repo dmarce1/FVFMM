@@ -26,7 +26,6 @@ HPX_PLAIN_ACTION( initialize, initialize_action);
 
 //HPX_PLAIN_ACTION(node_server::save, save_action2);
 
-//HPX_ACTION_USES_HUGE_STACK(output_collect_action_type);
 
 void node_server::start_run() {
 

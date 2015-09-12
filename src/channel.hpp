@@ -15,7 +15,7 @@ class channel {
 private:
 	std::list<std::shared_ptr<hpx::promise<T>>> pq;
 	std::list<std::shared_ptr<hpx::future<T>>> fq;
-	using mutex_type = 	hpx::lcos::local::spinlock;
+	using mutex_type = 	hpx::lcos::local::mutex;
 	mutex_type mtx;
 
 	void add_promise() {

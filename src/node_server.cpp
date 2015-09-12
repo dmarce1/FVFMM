@@ -101,8 +101,8 @@ void node_server::timestep_driver_ascend(real dt) {
 }
 
 
-node_server* node_server::get_ptr() {
-	return this;
+std::uintptr_t node_server::get_ptr() {
+	return reinterpret_cast<std::uintptr_t>(this);
 }
 
 node_server::node_server(node_server&& other) {

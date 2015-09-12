@@ -51,7 +51,7 @@ void my_system( const std::string& command) {
 
 
 std::pair<std::size_t,std::size_t> node_server::save(integer loc_id, std::string fname) const {
-	static hpx::lcos::local::spinlock mtx;
+	static hpx::lcos::local::mutex mtx;
 
 
 	std::size_t total_cnt = 0;
@@ -83,7 +83,7 @@ std::pair<std::size_t,std::size_t> node_server::save(integer loc_id, std::string
 	}
 
 	{
-		boost::lock_guard<hpx::lcos::local::spinlock> file_lock(mtx);
+		boost::lock_guard<hpx::lcos::local::mutex> file_lock(mtx);
 		FILE* fp = fopen( (fname + std::string(".") + std::to_string(integer(hpx::get_locality_id()))).c_str(), "ab");
 		total_cnt++;
 		bytes_written += my_location.save(fp);

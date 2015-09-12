@@ -146,7 +146,7 @@ public:
 		arc << G;
 		arc << U_out;
 	}
-	BOOST_SERIALIZATION_SPLIT_MEMBER()
+	HPX_SERIALIZATION_SPLIT_MEMBER()
 	;
 
 	std::size_t load(FILE* fp);

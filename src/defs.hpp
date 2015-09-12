@@ -8,47 +8,21 @@
 
 #ifndef TYPES444_HPP_
 #define TYPES444_HPP_
-#ifdef MINI_HPX
-#include "../hpx/hpx.hpp"
-#else
 #include <hpx/hpx.hpp>
-#endif
-
-
-#include <array>
-#include <vector>
 
 typedef double real;
 typedef long long int integer;
 typedef char byte;
 
-
 enum gsolve_type {
 	RHO, DRHODT
 };
 
-//#define OUTPUT_MULTIPLE_FILES
 
-
-#include <boost/serialization/serialization.hpp>
-#include <boost/serialization/set.hpp>
-#include <boost/serialization/array.hpp>
-#include <boost/serialization/vector.hpp>
-
-#if BOOST_VERSION<105700
-namespace boost {
-namespace serialization {
-
-template<class Archive, class T, size_t N>
-void serialize(Archive & ar, std::array<T,N> & a, const unsigned int version)
-{
-  ar & boost::serialization::make_array(a.data(), a.size());
-}
-
-} // namespace serialization
-} // namespace boost
-
-#endif
+#include <hpx/runtime/serialization/serialize.hpp>
+#include <hpx/runtime/serialization/set.hpp>
+#include <hpx/runtime/serialization/array.hpp>
+#include <hpx/runtime/serialization/vector.hpp>
 
 
 const real DEFAULT_OMEGA = 0.142194022;
